@@ -1,0 +1,7 @@
+Best scores :
+dmn
+extended_dmn : partial correlation 62%, pval = 0.07
+extended_dmn + basal + salience + temporal + cerebellum : precision 62%, pval = 0.08
+extended_dmn + striate : partial correlation 72 %, pval = 0.04
+extended_dmn + striate + basal : partial correlation 67 %, pval = 0.05
+cerebellum + insula + striate + basal : partial correlation 65 %, pval = 0.06

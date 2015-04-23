@@ -8,15 +8,13 @@ features
 # License: simplified BSD
 
 import distutils.version
-import warnings
+from six import string_types
 
 import numpy as np
 import scipy
 from scipy import signal, stats, linalg
 from sklearn.utils import gen_even_slices
 from distutils.version import LooseVersion
-
-from ._utils.compat import _basestring
 
 np_version = distutils.version.LooseVersion(np.version.short_version).version
 
@@ -44,15 +42,13 @@ def _standardize(signals, detrend=False, normalize=True):
     if detrend:
         signals = _detrend(signals, inplace=False)
     else:
-        # remove mean if not already detrended
-        signals -= signals.mean(axis=0)
         signals = signals.copy()
-    if signals.shape[0] == 1:
-        warnings.warn('Standardization of 3D signal has been requested but '
-            'would lead to zero values. Skipping.')
-        return signals
 
     if normalize:
+        # remove mean if not already detrended
+        if not detrend:
+            signals -= signals.mean(axis=0)
+
         std = np.sqrt((signals ** 2).sum(axis=0))
         std[std < np.finfo(np.float).eps] = 1.  # avoid numerical problems
         signals /= std
@@ -124,19 +120,9 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
     =======
     detrended_signals: numpy.ndarray
         Detrended signals. The shape is that of 'signals'.
-
-    Notes
-    =====
-
-    If a signal of lenght 1 is given, it is returned unchanged.
-
     """
     if not inplace:
         signals = signals.copy()
-    if signals.shape[0] == 1:
-        warnings.warn('Detrending of 3D signal has been requested but '
-            'would lead to zero values. Skipping.')
-        return signals
 
     signals -= np.mean(signals, axis=0)
     if type == "linear":
@@ -148,6 +134,8 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
         # avoid numerical problems
         if not std < np.finfo(np.float).eps:
             regressor /= std
+        else:
+            print "pb with detrend"
         regressor = regressor[:, np.newaxis]
 
         # No batching for small arrays
@@ -159,17 +147,6 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
             signals[:, batch] -= np.dot(regressor[:, 0], signals[:, batch]
                                         ) * regressor
     return signals
-
-
-def _check_wn(btype, freq, nyq):
-    wn = freq / float(nyq)
-    if wn > 1.:
-        warnings.warn('The frequency specified for the %s pass filter is '
-                'too high to be handled by a digital filter (superior to '
-                'nyquist frequency). It has been lowered to %.2f (nyquist '
-                'frequency).' % (btype, nyq))
-        wn = 1.
-    return wn
 
 
 def butterworth(signals, sampling_rate, low_pass=None, high_pass=None,
@@ -227,21 +204,22 @@ def butterworth(signals, sampling_rate, low_pass=None, high_pass=None,
 
     nyq = sampling_rate * 0.5
 
-    critical_freq = []
-    if high_pass is not None:
-        btype = 'high'
-        critical_freq.append(_check_wn(btype, high_pass, nyq))
-
+    wn = None
     if low_pass is not None:
+        lf = low_pass / nyq
         btype = 'low'
-        critical_freq.append(_check_wn(btype, low_pass, nyq))
+        wn = lf
 
-    if len(critical_freq) == 2:
+    if high_pass is not None:
+        hf = high_pass / nyq
+        btype = 'high'
+        wn = hf
+
+    if low_pass is not None and high_pass is not None:
         btype = 'band'
-    else:
-        critical_freq = critical_freq[0]
+        wn = [hf, lf]
 
-    b, a = signal.butter(order, critical_freq, btype=btype)
+    b, a = signal.butter(order, wn, btype=btype)
     if signals.ndim == 1:
         # 1D case
         output = signal.filtfilt(b, a, signals)
@@ -403,12 +381,17 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
     """
 
     if not isinstance(confounds,
-                      (list, tuple, _basestring, np.ndarray, type(None))):
+                      (list, tuple, string_types, np.ndarray, type(None))):
         raise TypeError("confounds keyword has an unhandled type: %s"
                         % confounds.__class__)
     # Standardize / detrend
+    normalize = False
+    if confounds is not None:
+        # If confounds are to be removed, then force normalization to improve
+        # matrix conditioning.
+        normalize = True
     signals = _ensure_float(signals)
-    signals = _standardize(signals, normalize=standardize, detrend=detrend)
+    signals = _standardize(signals, normalize=normalize, detrend=detrend)
 
     # Remove confounds
     if confounds is not None:
@@ -418,7 +401,7 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
         # Read confounds
         all_confounds = []
         for confound in confounds:
-            if isinstance(confound, _basestring):
+            if isinstance(confound, string_types):
                 filename = confound
                 confound = np.genfromtxt(filename)
                 if np.isnan(confound.flat[0]):

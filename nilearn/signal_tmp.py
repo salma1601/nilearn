@@ -8,15 +8,10 @@ features
 # License: simplified BSD
 
 import distutils.version
-import warnings
 
 import numpy as np
-import scipy
 from scipy import signal, stats, linalg
 from sklearn.utils import gen_even_slices
-from distutils.version import LooseVersion
-
-from ._utils.compat import _basestring
 
 np_version = distutils.version.LooseVersion(np.version.short_version).version
 
@@ -44,18 +39,51 @@ def _standardize(signals, detrend=False, normalize=True):
     if detrend:
         signals = _detrend(signals, inplace=False)
     else:
-        # remove mean if not already detrended
-        signals -= signals.mean(axis=0)
         signals = signals.copy()
-    if signals.shape[0] == 1:
-        warnings.warn('Standardization of 3D signal has been requested but '
-            'would lead to zero values. Skipping.')
-        return signals
 
     if normalize:
+        # remove mean if not already detrended
+        if not detrend:
+            signals -= signals.mean(axis=0)
+
         std = np.sqrt((signals ** 2).sum(axis=0))
         std[std < np.finfo(np.float).eps] = 1.  # avoid numerical problems
         signals /= std
+    return signals
+
+
+def _psc(signals, detrend=False, psc=True):
+    """ Center and norm a given signal (time is along first axis)
+
+    Parameters
+    ==========
+    signals: numpy.ndarray
+        Timeseries to standardize
+
+    detrend: bool
+        if detrending of timeseries is requested
+
+    psc: bool
+        if True, scale timeseries to 100 mean and center.
+
+    Returns
+    =======
+    std_signals: numpy.ndarray
+        copy of signals, normalized.
+    """
+    signals = signals.copy()
+    if psc:
+        # scale to psc only if non centered
+        uncentered = np.abs(signals.mean(axis=0)) > 1e-5
+        signals[:, uncentered] *= 100. / signals[:, uncentered].mean(axis=0)
+
+    if detrend:
+        signals = _detrend_psc(signals, inplace=False, psc=psc)
+
+    if not detrend:
+        # remove mean if not already detrended
+        signals -= signals.mean(axis=0)
+
     return signals
 
 
@@ -124,19 +152,9 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
     =======
     detrended_signals: numpy.ndarray
         Detrended signals. The shape is that of 'signals'.
-
-    Notes
-    =====
-
-    If a signal of lenght 1 is given, it is returned unchanged.
-
     """
     if not inplace:
         signals = signals.copy()
-    if signals.shape[0] == 1:
-        warnings.warn('Detrending of 3D signal has been requested but '
-            'would lead to zero values. Skipping.')
-        return signals
 
     signals -= np.mean(signals, axis=0)
     if type == "linear":
@@ -148,6 +166,8 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
         # avoid numerical problems
         if not std < np.finfo(np.float).eps:
             regressor /= std
+        else:
+            print "pb with detrend"
         regressor = regressor[:, np.newaxis]
 
         # No batching for small arrays
@@ -161,15 +181,65 @@ def _detrend(signals, inplace=False, type="linear", n_batches=10):
     return signals
 
 
-def _check_wn(btype, freq, nyq):
-    wn = freq / float(nyq)
-    if wn > 1.:
-        warnings.warn('The frequency specified for the %s pass filter is '
-                'too high to be handled by a digital filter (superior to '
-                'nyquist frequency). It has been lowered to %.2f (nyquist '
-                'frequency).' % (btype, nyq))
-        wn = 1.
-    return wn
+def _detrend_psc(signals, psc=True, inplace=False, type="linear",
+                 n_batches=10):
+    """Detrend columns of input array.
+
+    Signals are supposed to be columns of `signals`.
+    This function is significantly faster than scipy.signal.detrend on this
+    case and uses a lot less memory.
+
+    Parameters
+    ==========
+    signals : numpy.ndarray
+        This parameter must be two-dimensional.
+        Signals to detrend. A signal is a column.
+
+    inplace : bool, optional
+        Tells if the computation must be made inplace or not (default
+        False).
+
+    type : str, optional
+        Detrending type ("linear" or "constant").
+        See also scipy.signal.detrend.
+
+    n_batches : int, optional
+        number of batches to use in the computation. Tweaking this value
+        can lead to variation of memory usage and computation time. The higher
+        the value, the lower the memory consumption.
+
+    Returns
+    =======
+    detrended_signals: numpy.ndarray
+        Detrended signals. The shape is that of 'signals'.
+    """
+    if not inplace:
+        signals = signals.copy()
+
+    signals -= np.mean(signals, axis=0)
+    if type == "linear":
+        # Keeping "signals" dtype avoids some type conversion further down,
+        # and can save a lot of memory if dtype is single-precision.
+        regressor = np.arange(signals.shape[0], dtype=signals.dtype)
+        regressor -= regressor.mean()
+        std = np.sqrt((regressor ** 2).sum())
+        # avoid numerical problems
+        if not std < np.finfo(np.float).eps:
+            regressor /= std
+        else:
+            print "pb with detrend"
+
+        regressor = regressor[:, np.newaxis]
+
+        # No batching for small arrays
+        if signals.shape[1] < 500:
+            n_batches = 1
+
+        # This is fastest for C order.
+        for batch in gen_even_slices(signals.shape[1], n_batches):
+            signals[:, batch] -= np.dot(regressor[:, 0], signals[:, batch]
+                                        ) * regressor
+    return signals
 
 
 def butterworth(signals, sampling_rate, low_pass=None, high_pass=None,
@@ -227,43 +297,38 @@ def butterworth(signals, sampling_rate, low_pass=None, high_pass=None,
 
     nyq = sampling_rate * 0.5
 
-    critical_freq = []
-    if high_pass is not None:
-        btype = 'high'
-        critical_freq.append(_check_wn(btype, high_pass, nyq))
-
+    wn = None
     if low_pass is not None:
+        lf = low_pass / nyq
         btype = 'low'
-        critical_freq.append(_check_wn(btype, low_pass, nyq))
+        wn = lf
 
-    if len(critical_freq) == 2:
+    if high_pass is not None:
+        hf = high_pass / nyq
+        btype = 'high'
+        wn = hf
+
+    if low_pass is not None and high_pass is not None:
         btype = 'band'
-    else:
-        critical_freq = critical_freq[0]
+        wn = [hf, lf]
 
-    b, a = signal.butter(order, critical_freq, btype=btype)
+    b, a = signal.butter(order, wn, btype=btype)
     if signals.ndim == 1:
         # 1D case
-        output = signal.filtfilt(b, a, signals)
-        if copy:  # filtfilt does a copy in all cases.
+        output = signal.lfilter(b, a, signals)
+        if copy:  # lfilter does a copy in all cases.
             signals = output
         else:
             signals[...] = output
     else:
         if copy:
-            if (LooseVersion(scipy.__version__) < LooseVersion('0.10.0')):
-                # filtfilt is 1D only in scipy 0.9.0
-                signals = signals.copy()
-                for timeseries in signals.T:
-                    timeseries[:] = signal.filtfilt(b, a, timeseries)
-            else:
-                # No way to save memory when a copy has been requested,
-                # because filtfilt does out-of-place processing
-                signals = signal.filtfilt(b, a, signals, axis=0)
+            # No way to save memory when a copy has been requested,
+            # because lfilter does out-of-place processing
+            signals = signal.lfilter(b, a, signals, axis=0)
         else:
             # Lesser memory consumption, slower.
             for timeseries in signals.T:
-                timeseries[:] = signal.filtfilt(b, a, timeseries)
+                timeseries[:] = signal.lfilter(b, a, timeseries)
     return signals
 
 
@@ -403,12 +468,17 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
     """
 
     if not isinstance(confounds,
-                      (list, tuple, _basestring, np.ndarray, type(None))):
+                      (list, tuple, basestring, np.ndarray, type(None))):
         raise TypeError("confounds keyword has an unhandled type: %s"
                         % confounds.__class__)
     # Standardize / detrend
+    normalize = False
+    if confounds is not None:
+        # If confounds are to be removed, then force normalization to improve
+        # matrix conditioning.
+        normalize = True
     signals = _ensure_float(signals)
-    signals = _standardize(signals, normalize=standardize, detrend=detrend)
+    signals = _standardize(signals, normalize=normalize, detrend=detrend)
 
     # Remove confounds
     if confounds is not None:
@@ -418,7 +488,7 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
         # Read confounds
         all_confounds = []
         for confound in confounds:
-            if isinstance(confound, _basestring):
+            if isinstance(confound, basestring):
                 filename = confound
                 confound = np.genfromtxt(filename)
                 if np.isnan(confound.flat[0]):
@@ -460,5 +530,130 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
     if standardize:
         signals = _standardize(signals, normalize=True, detrend=False)
         signals *= np.sqrt(signals.shape[0])  # for unit variance
+
+    return signals
+
+
+def clean_psc(signals, detrend=True, standardize=True, confounds=None,
+              low_pass=None, high_pass=None, t_r=2.5, psc=True,
+              assume_confounds_centered=True):
+    """Improve SNR on masked fMRI signals.
+
+       This function can do several things on the input signals, in
+       the following order:
+       - detrend
+       - standardize
+       - remove confounds
+       - low- and high-pass filter
+
+       Low-pass filtering improves specificity.
+
+       High-pass filtering should be kept small, to keep some
+       sensitivity.
+
+       Filtering is only meaningful on evenly-sampled signals.
+
+       Parameters
+       ==========
+       signals: numpy.ndarray
+           Timeseries. Must have shape (instant number, features number).
+           This array is not modified.
+
+       confounds: numpy.ndarray, str or list of
+           Confounds timeseries. Shape must be
+           (instant number, confound number), or just (instant number,)
+           The number of time instants in signals and confounds must be
+           identical (i.e. signals.shape[0] == confounds.shape[0]).
+           If a string is provided, it is assumed to be the name of a csv file
+           containing signals as columns, with an optional one-line header.
+           If a list is provided, all confounds are removed from the input
+           signal, as if all were in the same array.
+
+       t_r: float
+           Repetition time, in second (sampling period).
+
+       low_pass, high_pass: float
+           Respectively low and high cutoff frequencies, in Hertz.
+
+       detrend: bool
+           If detrending should be applied on timeseries (before
+           confound removal)
+
+       standardize: bool
+           If True, returned signals are set to unit variance.
+
+       psc: bool
+           If True, returned signals are set to psc units.
+
+       Returns
+       =======
+       cleaned_signals: numpy.ndarray
+           Input signals, cleaned. Same shape as `signals`.
+
+       Notes
+       =====
+       Confounds removal is based on a projection on the orthogonal
+       of the signal space. See `Friston, K. J., A. P. Holmes,
+       K. J. Worsley, J.-P. Poline, C. D. Frith, et R. S. J. Frackowiak.
+       "Statistical Parametric Maps in Functional Imaging: A General
+       Linear Approach". Human Brain Mapping 2, no 4 (1994): 189-210.
+       <http://dx.doi.org/10.1002/hbm.460020402>`_
+    """
+
+    if not isinstance(confounds,
+                      (list, tuple, basestring, np.ndarray, type(None))):
+        raise TypeError("confounds keyword has an unhandled type: %s"
+                        % confounds.__class__)
+
+    # Standardize / detrend
+    signals = _psc(signals, psc=psc, detrend=detrend)
+
+    # Remove confounds
+    if confounds is not None:
+        if not isinstance(confounds, (list, tuple)):
+            confounds = (confounds, )
+
+        # Read confounds
+        all_confounds = []
+        for confound in confounds:
+            if isinstance(confound, basestring):
+                filename = confound
+                confound = np.genfromtxt(filename)
+                if np.isnan(confound.flat[0]):
+                    # There may be a header
+                    if np_version >= [1, 4, 0]:
+                        confound = np.genfromtxt(filename, skip_header=1)
+                    else:
+                        confound = np.genfromtxt(filename, skiprows=1)
+                if confound.shape[0] != signals.shape[0]:
+                    raise ValueError("Confound signal has an incorrect length")
+
+            elif isinstance(confound, np.ndarray):
+                if confound.ndim == 1:
+                    confound = np.atleast_2d(confound).T
+                elif confound.ndim != 2:
+                    raise ValueError("confound array has an incorrect number "
+                                     "of dimensions: %d" % confound.ndim)
+
+                if confound.shape[0] != signals.shape[0]:
+                    raise ValueError("Confound signal has an incorrect length")
+            else:
+                raise TypeError("confound has an unhandled type: %s"
+                                % confound.__class__)
+            all_confounds.append(confound)
+
+        # Restrict the signal to the orthogonal of the confounds
+        confounds = np.hstack(all_confounds)
+        del all_confounds
+        confounds = _psc(confounds, psc=False, detrend=detrend)
+        Q, R = linalg.qr(confounds, mode='economic')
+#        print Q.shape
+#        np.testing.assert_allclose(R.dot(np.linalg.inv((R.T).dot(R)).dot(R.T)),
+#                                   np.eye(R.shape[0]))
+        signals -= np.dot(Q, np.dot(Q.T, signals))
+
+    if low_pass is not None or high_pass is not None:
+        signals = butterworth(signals, sampling_rate=1. / t_r,
+                              low_pass=low_pass, high_pass=high_pass)
 
     return signals

@@ -47,6 +47,7 @@ def _standardize(signals, detrend=False, normalize=True):
         # remove mean if not already detrended
         signals -= signals.mean(axis=0)
         signals = signals.copy()
+
     if signals.shape[0] == 1:
         warnings.warn('Standardization of 3D signal has been requested but '
             'would lead to zero values. Skipping.')

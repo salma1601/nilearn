@@ -24,7 +24,7 @@ region_ts = masker.fit_transform(dataset['func'][0])  # raw signal
 low_pass = None
 high_pass = None
 confounds = motion
-cleaned = signal.clean(region_ts, detrend=True, standardize=False,
+cleaned = signal.clean(region_ts, detrend=False, standardize=False,
                        confounds=confounds, high_pass=high_pass,
                        low_pass=low_pass)
 assume_confounds_centered = (np.mean(motion) < 1e-7)

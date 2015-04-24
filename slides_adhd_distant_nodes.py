@@ -36,10 +36,6 @@ def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
     """Plot connectivity matrix, for a given measure. """
 
     mean_conn = mean_conn.copy()
-
-    # Put zeros on the diagonal, for graph clarity
-#    size = mean_conn.shape[0]
-#    mean_conn[range(size), range(size)] = 0
     vmax = np.abs(mean_conn).max()
     if vmax <= 2e-16:
         vmax = 0.1
@@ -47,7 +43,7 @@ def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
     # Display connectivity matrix
     plt.figure(figsize=(4, 3))
     plt.imshow(mean_conn, interpolation="nearest",
-              vmin=-vmax, vmax=vmax, cmap=plt.cm.get_cmap("bwr"))
+               vmin=-vmax, vmax=vmax, cmap=plt.cm.get_cmap("bwr"))
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=8)
     ax = plt.gca()
@@ -70,7 +66,7 @@ def plot_matrices(conns, title="connectivity", subtitles=[], ticks=[],
     n_subjects = conns.shape[0]
     if not subtitles:
         subtitles = ['subject ' + str(n_subject) for n_subject in
-            range(n_subjects)]
+                     range(n_subjects)]
 
     ncols = 4
     n_subject = 0
@@ -102,12 +98,11 @@ def plot_matrices(conns, title="connectivity", subtitles=[], ticks=[],
         cax = divider.append_axes("right", size="5%", pad=0.05)
         int_abs_max = round(vmax, 0)
         r = 0
-        while  int_abs_max == 0:
+        while int_abs_max == 0:
             r = r + 2
             int_abs_max = round(vmax, r)
         cb_label_size = max(1, 8 - r)
         cbticks = [-vmax, 0, vmax]
-        #    print '%f et %f pour %s' % (abs_max,int_abs_max, title)
         tickFormat = '%.1f'
         if r > 2:
             tickFormat = '%.1e'
@@ -205,9 +200,8 @@ for subject_n in range(n_subjects):
         region_ts = region_ts[:, new_order]
 
     if subject_n > n_subjects - 1 - max_outliers:
-#    if subject_n < max_outliers:
-        region_ts2 = masker_no_hf_filt.fit_transform(filename,
-                                     confounds=[hv_confounds, confound_file])
+        region_ts2 = masker_no_hf_filt.fit_transform(
+            filename, confounds=[hv_confounds, confound_file])
         if reorder:
             region_ts2 = region_ts2[:, new_order]
     else:
@@ -242,7 +236,6 @@ noisy_list = []
 for n_outliers in range(max_outliers):  # TODO max_outliers + 1 ?
     noisy_list.append(subjects[:n_subjects - n_outliers] + \
         subjects3[n_subjects - n_outliers:])
-#    noisy_list.append(subjects3[:n_outliers] + subjects[n_outliers:])
 
 import copy
 rand_gen = np.random.RandomState(0)
@@ -271,8 +264,7 @@ measures = ['covariance', 'precision', 'tangent', 'correlation',
             'partial correlation']
 from nilearn.connectivity.embedding import (map_sym, cov_to_corr,
                                             prec_to_partial)
-from sklearn.covariance import EmpiricalCovariance, ShrunkCovariance,\
-    LedoitWolf, GraphLassoCV, MinCovDet
+from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
 estimators = [('ledoit', LedoitWolf()), ('emp', EmpiricalCovariance()),
               ('mcd', MinCovDet())]
 n_estimator = 0
@@ -324,11 +316,36 @@ Z_correlations[np.isinf(Z_correlations)] = 1.
 Z_partials[np.isinf(Z_partials)] = 1.
 
 # Plot the matrix of connectivity and distance between nodes
-np.genfromtxt()
+msdl_filepath = os.path.join('/home/sb238920/nilearn_data/msdl_atlas/',
+                             'MSDL_rois/msdl_rois_labels.csv')
+coords = np.genfromtxt(msdl_filepath, names=True, delimiter=',',
+                       usecols=(0, 1, 2))
+coords = np.array([list(coord) for coord in coords])
+distance_matrix = coords - coords[:, np.newaxis]
+distance_matrix = np.linalg.norm(distance_matrix, axis=-1) / 1000
+conn2 = all_matrices2[3][-1]  # TODO: Z-Fisher transform
+conn = all_matrices[3][-1]
+plt.scatter(distance_matrix.flatten(), conn2.flatten() - conn.flatten())
+plt.show()
+plt.scatter(conn.flatten(), conn2.flatten(), c='r')
+plt.plot(conn.flatten(), conn.flatten())
+plt.show()
+
+plt.scatter(np.linalg.eigvalsh(conn), np.linalg.eigvalsh(conn2), c='r')
+plt.plot(np.linalg.eigvalsh(conn), np.linalg.eigvalsh(conn))
+plt.show()
+
+distance_matrix[distance_matrix < 0.12] = 0
+tri_mask = np.tril(distance_matrix) > 0
+corr = matrices2[3] - matrices[3]
+distance_matrix[tri_mask] = corr[tri_mask]
+plot_matrix(distance_matrix)
+plt.show()
+
 
 def disp(A, B):
     A_sqrt_inv = map_sym(lambda x: 1. / np.sqrt(x), A)
-    return map_sym(np.log, A_sqrt_inv.dot(B).dot(A_sqrt_inv))
+
 
 
 def norm_disp(A, B):
@@ -376,46 +393,15 @@ for n_out, all_matrices2 in enumerate(noisy_matrices):
             subtitles = ['subject ' + str(n_sub) for n_sub in subj_idx]
             fig_title = 'indiv_' + measure + '_' + sites[n_site * 8] + '_' +\
                 estimators[n_estimator][0]
-            filename = os.path.join(
-                '/home/salma/slides/NiConnect/Images/robustness/no_hf_filtering',
-                fig_title + ".pdf")
+            filename = os.path.join('/home/salma/slides/NiConnect/Images',
+                                    'robustness/no_hf_filtering',
+                                    fig_title + ".pdf")
             if (not os.path.isfile(filename)) and overwrite:
                 plot_matrices(all_matrices2[n_meas][subj_idx, ...],
                               title=measure, subtitles=subtitles)
-#                pylab.savefig(filename)
-#                os.system("pdfcrop %s %s" % (filename, filename))
+                pylab.savefig(filename)
+                os.system("pdfcrop %s %s" % (filename, filename))
 
-    #############################################
-    # Compute the distances between the matrices
-    #############################################
-    mat_dist = np.zeros((5, len(subjects) + 1, len(subjects) + 1))
-    conns_all = [covariances2, precisions2, covariances2, correlations2,
-                 partials2]
-    conns_all = [np.vstack((conns, mean_matrices2[n][np.newaxis, ...])) for
-        (n, conns) in enumerate(conns_all)]
-    for n, conns in enumerate(conns_all):
-        for sub_n in range(len(subjects) + 1):
-            if n == 2:
-                mat_dist[n, sub_n] = [np.linalg.norm(disp(conns[sub_n], conn))\
-                    for conn in conns]
-            else:
-                mat_dist[n, sub_n] = [np.linalg.norm(conns[sub_n] - conn) \
-                    for conn in conns]
-        percent = 90
-        mask = mat_dist[n] < np.percentile(mat_dist[n], percent)
-        mat_dist[n][mask] = 0.
-        if n_out < 3 and overwrite:
-            plot_matrix(mat_dist[n], titles[n], ticks=range(0, 41, 2),
-                        tick_labels=[str(tick) for tick in range(0, 41, 2)])
-            fig_title = str(n_out) + 'outliers_' + str(percent) + '_percent' +\
-                measures[n] + '_' + estimators[n_estimator][0]
-            filename = os.path.join(
-                '/home/salma/slides/NiConnect/Images/robustness/no_hf_filtering',
-                fig_title + ".pdf")
-#            pylab.savefig(filename)
-#            os.system("pdfcrop %s %s" % (filename, filename))
-
-plt.show()
 
 cov_err = []
 robust_cov_err = []
@@ -436,41 +422,44 @@ for mean_matrices2 in noisy_means:
     robust_prec = np.linalg.inv(mean_matrices[2])
     robust_part = prec_to_partial(robust_prec)
     robust_corr = cov_to_corr(mean_matrices[2])
-    cov_err.append(distance(mean_matrices[0] , mean_matrices2[0]) /\
-        np.linalg.norm(mean_matrices[0]))
-    robust_cov_err.append(distance(mean_matrices[2] ,
-        mean_matrices2[2]) / np.linalg.norm(mean_matrices[2]))
-    prec_err.append(distance(mean_matrices[1] , mean_matrices2[1]) /\
-        np.linalg.norm(mean_matrices[1]))
-    robust_prec_err.append(distance(robust_prec , np.linalg.inv(
-        mean_matrices2[2])) / np.linalg.norm(robust_prec))
-    corr_err.append(distance(mean_matrices[3] , mean_matrices2[3]) /\
-        np.linalg.norm(mean_matrices[3]))
-    robust_corr_err.append(distance(robust_corr , cov_to_corr(
+    cov_err.append(distance(mean_matrices[0], mean_matrices2[0]) /
+                   np.linalg.norm(mean_matrices[0]))
+    robust_cov_err.append(distance(mean_matrices[2], mean_matrices2[2]) /
+                          np.linalg.norm(mean_matrices[2]))
+    prec_err.append(distance(mean_matrices[1], mean_matrices2[1]) /
+                    np.linalg.norm(mean_matrices[1]))
+    robust_prec_err.append(distance(robust_prec, np.linalg.inv(
+                           mean_matrices2[2])) / np.linalg.norm(robust_prec))
+    corr_err.append(distance(mean_matrices[3], mean_matrices2[3]) /
+                    np.linalg.norm(mean_matrices[3]))
+    robust_corr_err.append(distance(robust_corr, cov_to_corr(
         mean_matrices2[2])) / np.linalg.norm(robust_corr))
-    part_err.append(distance(mean_matrices[4] , mean_matrices2[4]) /\
-        np.linalg.norm(mean_matrices[4]))
-    robust_part_err.append(distance(robust_part , prec_to_partial(
+    part_err.append(distance(mean_matrices[4], mean_matrices2[4]) /
+                    np.linalg.norm(mean_matrices[4]))
+    robust_part_err.append(distance(robust_part, prec_to_partial(
         np.linalg.inv(mean_matrices2[2]))) / np.linalg.norm(robust_part))
 
 plt.figure()
 colors = ['r', 'b', 'g', 'k']
 ls = ['-', '--']
-percent_outliers = [100. * n_outliers / n_subjects for n_outliers in
-    range(max_outliers)]
+percent_outliers = [100. * n_out / n_subjects for n_out in range(max_outliers)]
 percent_str = [str(percent) + '%' for percent in percent_outliers]
 lineObjects = []
 if overwrite:
-    for n, error in enumerate([.0001 * np.array(cov_err), .0001 * np.array(robust_cov_err),
-                               100 * np.array(prec_err), 100 * np.array(robust_prec_err),
+    for n, error in enumerate([.0001 * np.array(cov_err),
+                               .0001 * np.array(robust_cov_err),
+                               100 * np.array(prec_err),
+                               100 * np.array(robust_prec_err),
                                corr_err, robust_corr_err,
                                part_err, robust_part_err]):
         lineObjects += plt.plot(percent_outliers, error, colors[n / 2],
                                 linestyle=ls[n % 2])
     plt.legend(iter(lineObjects), ('mean covariances / 10000', 'gmean / 10000',
-                                    'mean precisions * 100', r'gmean$ ^{-1} * 100$',
-                                    'mean correlations', 'corr(gmean)',
-                                    'mean partial correlations', 'partial(gmean)'),
+                                   'mean precisions * 100',
+                                   r'gmean$ ^{-1} * 100$',
+                                   'mean correlations', 'corr(gmean)',
+                                   'mean partial correlations',
+                                   'partial(gmean)'),
                loc=0)
     plt.title('robustness')
     plt.xlabel('percentage of outliers')
@@ -481,55 +470,5 @@ if overwrite:
         '/home/salma/slides/NiConnect/Images/robustness/no_hf_filtering',
         fig_title + ".pdf")
 if (not os.path.isfile(filename)) and overwrite:
-#    pylab.savefig(filename)
-#    os.system("pdfcrop %s %s" % (filename, filename))
-    pass
-
-# Only correlation and partial correlations
-if overwrite:
-    plt.figure(figsize=(6, 5))
-    lineObjects = []
-    colors = ['g', 'k']
-    for n, error in enumerate([corr_err, part_err]):
-        lineObjects += plt.plot(percent_outliers, error, colors[n])
-    plt.legend(iter(lineObjects), ( 'mean correlations',
-               'mean partial correlations'),
-               loc=0)
-    #plt.title('robustness')
-    plt.xlabel('percentage of outliers')
-    plt.xticks(percent_outliers, percent_str, size=8)
-    plt.ylabel('relative error in Froebenus norm')
-    fig_title = 'froe_relative_err_corr_part' + estimators[n_estimator][0]
-    filename = os.path.join(
-        '/home/salma/slides/NiConnect/Images/robustness/no_hf_filtering',
-        fig_title + '_' + str(max_outliers) + 'outliers' + ".pdf")
-    #pylab.savefig(filename)
-    #os.system("pdfcrop %s %s" % (filename, filename))
-    plt.show()
-
-# Correlation, partial and tangent
-if overwrite:
-    plt.figure(figsize=(8, 6))
-    colors = ['g', 'k']
-    ls = ['-', '--']
-    percent_outliers = [100. * n_outliers / n_subjects for n_outliers in
-        range(max_outliers)]
-    percent_str = [str(percent) + '%' for percent in percent_outliers]
-    lineObjects = []
-    for n, error in enumerate([corr_err, robust_corr_err,
-                               part_err, robust_part_err]):
-        lineObjects += plt.plot(percent_outliers, error, colors[n / 2],
-                                linestyle=ls[n % 2])
-    plt.legend(iter(lineObjects), ( 'mean correlations', 'corr(gmean)',
-                                    'mean partial correlations', 'partial(gmean)'),
-               loc=0)
-    #plt.title('robustness')
-    plt.xlabel('percentage of outliers')
-    plt.xticks(percent_outliers, percent_str, size=8)
-    plt.ylabel('relative error')
-    fig_title = 'froe_relative_err_corr_part_tan' + estimators[n_estimator][0]
-    filename = os.path.join(
-        '/home/salma/slides/NiConnect/Images/robustness/no_hf_filtering',
-        fig_title + ".pdf")
-    #pylab.savefig(filename)
-    #os.system("pdfcrop %s %s" % (filename, filename))
+    pylab.savefig(filename)
+    os.system("pdfcrop %s %s" % (filename, filename))

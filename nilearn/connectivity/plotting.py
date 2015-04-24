@@ -4,7 +4,7 @@ import matplotlib.pylab as plt
 
 def plot_histograms(multiple_coefs, preprocessings, colors=[], title='',
                     xlabel=''):
-    """Plot historgram of coefficients, for a given processing"""
+    """Row subplot of multiple historgrams"""
     n_plots = len(multiple_coefs)
     axes = None
     if len(colors) < n_plots:
@@ -54,5 +54,4 @@ def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
     plt.yticks(ticks, tick_labels, size=8)
     ax.yaxis.tick_left()
     plt.ylabel(ylabel)
-
     plt.title(title)

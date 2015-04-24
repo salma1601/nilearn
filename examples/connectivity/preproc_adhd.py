@@ -5,7 +5,7 @@ Temporal preprocessing of BOLD signal within ROIs
 This example shows how to extract signals from seed ROIS and to explore the
 effect of different temporal preprocessings.
 """
-n_subjects = 2  # subjects to consider for group-sparse covariance (max: 40)
+n_subjects = 1  # subjects to consider for group-sparse covariance (max: 40)
 plotted_subject = 1  # subjects indexes to plot
 
 import numpy as np
@@ -15,7 +15,6 @@ import nibabel
 
 from nilearn import plotting, image
 from nilearn.plotting import cm
-from sklearn.covariance import EmpiricalCovariance
 
 
 def corr_to_Z(corr):
@@ -34,6 +33,7 @@ def spectral_decompose():
     Mapping Functionally Related Regions of Brain with
     Functional Connectivity MR Imaging. Cordes et al., AJNR Am J Neuroradiol
     21:1636–1644, 2000. """
+# TODO: check appliable for other measures of connectivity
     pass
 
 
@@ -53,8 +53,8 @@ def plot_matrices(cov, prec, title):
     # Display covariance matrix
     plt.figure()
     plt.imshow(cov, interpolation="nearest",
-               vmin=-np.max(np.abs(cov)), vmax=np.max(np.abs(cov)), cmap=cm.bwr)
-#               vmin=-1, vmax=1, cmap=cm.bwr)
+               vmin=-np.max(np.abs(cov)), vmax=np.max(np.abs(cov)),
+               cmap=cm.bwr)
     plt.colorbar()
     plt.title("%s / covariance" % title)
 
@@ -89,6 +89,7 @@ def plot_ts(multiple_ts, region_names, preprocessings, title=''):
     plt.title(title)
 
 
+# TODO: import function from plotting
 def plot_histograms(multiple_ts, colors=[], preprocessings=[], title=''):
     """Plot historgram of empirical covariance coefficients, for a given
     processing"""
@@ -101,8 +102,7 @@ def plot_histograms(multiple_ts, colors=[], preprocessings=[], title=''):
     for i, preproc in enumerate(preprocessings):
         region_ts = multiple_ts[i].copy()
 
-        # Standardize the signals to have coefficients in range [-1, 1]
- #       region_ts /= region_ts.std(axis=0)
+        # TODO: standardize the signals to have coefficients in range [-1, 1]
         color = colors[i]
         cov_estimator.fit(region_ts)
         covariance = cov_estimator.covariance_
@@ -112,7 +112,7 @@ def plot_histograms(multiple_ts, colors=[], preprocessings=[], title=''):
         n_regions = covariance.shape[0]
         bins = n_regions * (n_regions - 1) / 20
         plt.hist(covariance[np.triu_indices(n_regions, k=1)], bins=bins,
-                            normed=1, color=color, alpha=0.4)
+                 normed=1, color=color, alpha=0.4)
         plt.ylabel(preproc)
         if i == 0:
             plt.title(title)
@@ -132,7 +132,8 @@ atlas_img, labels = datasets.fetch_harvard_oxford('sub-maxprob-thr25-2mm')
 # Choose seeds
 # From the subcortical features, regional voxel intensity means in left
 # caudate and right thalamus were ranked highly, consistent with previous
-# structural studies in ADHD (Ellison-Wright et al., 2008; Ivanov et al., 2010).
+# structural studies in ADHD (Ellison-Wright et al., 2008; Ivanov et al.,
+# 2010).
 
 # keep only grey matter right regions
 img = nibabel.load(atlas_img)
@@ -161,8 +162,8 @@ subjects = []
 func_filenames = adhd_dataset.func
 confound_filenames = adhd_dataset.confounds
 is_adhd = []
-for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
-                                            confound_filenames)):
+for n, (func_filename, confound_filename) in enumerate(
+        zip(func_filenames, confound_filenames)):
     print("Processing file %s" % func_filename)
 
     print("-- Computing confounds ...")
@@ -217,15 +218,23 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
     my_confounds /= my_confounds.std(axis=0) * np.sqrt(n_samples)
 
     # Detrending, filtering and confounds removal by linear regression
-    # Filtering : show the respiratory and heart beat curves (see Satterwaith)
+    # Detrending: plot the signals before and after
+    # Filtering: show the respiratory and heart beat curves (see Satterwaith)
+    # Filtering: show the spectral decomposition of the connectivity
+    # TODO: specify the order, enter args in the same order
+    # TODO: remove only motion confounds and hv confounds
+    # TODO: call it tCompCor and refer to Behzadi's paper, comment on aCompCor
+    # w.r.t. to the paper and prove with plot with bg anat
+    # TODO: comment on motion maximal variance effect, cite Satterwhaite
     print '1'
     region_raw_ts = nilearn.signal.clean(region_raw_ts2, detrend=False,
-                                     low_pass=None, high_pass=None, t_r=2.5,
-                                     standardize=True)
+                                         low_pass=None, high_pass=None,
+                                         t_r=2.5, standardize=True)
     region_ts = nilearn.signal.clean(region_raw_ts2, detrend=True,
                                      low_pass=None, high_pass=None, t_r=2.5,
-                                     standardize=True, confounds=[
-                                     hv_confounds, confound_filename])
+                                     standardize=True,
+                                     confounds=[hv_confounds,
+                                                confound_filename])
     from nilearn.signal_tmp import clean_psc
     print '2'
 #    region_ts = nilearn.signal.clean(region_raw_ts2, detrend=True,
@@ -233,19 +242,20 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
 #                                     standardize=True)
     print '3'
     region_ts_psc = clean_psc(region_raw_ts2, detrend=True,
-                                     low_pass=None, high_pass=None, t_r=2.5,
-                                     standardize=False, psc=True)
-                                     
+                              low_pass=None, high_pass=None, t_r=2.5,
+                              standardize=False, psc=True)
+
     my_region_ts = nilearn.signal.clean(region_raw_ts1, detrend=True,
-                                     low_pass=low_pass, high_pass=high_pass, t_r=2.5,
-                                     standardize=False, confounds=my_confounds)
-                                     # TODO : improve with psc later on
+                                        low_pass=low_pass, high_pass=high_pass,
+                                        t_r=2.5, standardize=False,
+                                        confounds=my_confounds)
+                                        # TODO : improve with psc later on
 
     is_adhd.append(adhd_dataset.phenotypic['adhd'][n])
     subjects.append(my_region_ts)
     if n == plotted_subject:
-        plotted_regions = [1, 2]#, 18, 19]  # regions to plot their time series
-        preprocessings=['raw', 'standardized', 'psc']
+        plotted_regions = [1, 2]  # regions to plot the timeseries, plot 18, 19
+        preprocessings = ['raw', 'standardized', 'psc']
         # Get the regions names
 #        labels = np.genfromtxt(msdl_atlas_dataset['labels'], delimiter=',',
 #                               names=True, dtype=None)
@@ -262,7 +272,7 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
 
         # Plot the histogram of the covariance coefficients for the raw and
         # preprocessed signals. Preprocessing is expected to center and narrow
-        # the distribution
+        # the distribution. Find paper to cite
         plot_histograms([region_raw_ts, region_ts, region_ts_psc],
                         preprocessings=preprocessings,
                         colors=['grey', 'blue', 'red'],
@@ -273,12 +283,14 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
             variance_data[mean_data == 0.] = 0.
             variance_data[np.abs(variance_data) < 10] = 0.
             plotting.plot_stat_map(nibabel.Nifti1Image(variance_data, affine),
-                      mean_img, title='% correlation ' + name,
-                      annotate=False,
-                      colorbar=True, cut_coords=cut_coords)
+                                   mean_img, title='% correlation ' + name,
+                                   annotate=False,
+                                   colorbar=True, cut_coords=cut_coords)
 
             from sklearn import linear_model
-            regr = linear_model.LinearRegression(normalize=True)#(fit_intercept=True, normalize=True)
+            # TODO: compute the variance by confound removal
+            # TODO: may be r^2 coef as in Satterwhaite
+            regr = linear_model.LinearRegression(normalize=True)
             data_2d = data.reshape(-1, n_samples).transpose()
             regr.fit(my_confounds[:, c][:, np.newaxis], data_2d)
             predicted_data = regr.predict(my_confounds[:, c][:, np.newaxis])
@@ -294,10 +306,11 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
             percent_variance[mean_data == 0.] = 0.
             percent_variance[percent_variance < 1.] = 0.
             percent_variance = np.sqrt(percent_variance) * 10.
-            plotting.plot_stat_map(nibabel.Nifti1Image(percent_variance, affine),
-                      mean_img, title='% BOLD variance explained by ' + name,
-                      annotate=False,
-                      colorbar=True, cut_coords=cut_coords)
+            plotting.plot_stat_map(
+                nibabel.Nifti1Image(percent_variance, affine),
+                mean_img, title='% BOLD variance explained by ' + name,
+                annotate=False,
+                colorbar=True, cut_coords=cut_coords)
 
         # Plot the correlation maps
         for seed_name, seed_signal in zip(region_names, region_ts.transpose()):
@@ -306,8 +319,8 @@ for n, (func_filename, confound_filename) in enumerate(zip(func_filenames,
             corr_data[mean_data == 0.] = 0.
             corr_data[np.abs(corr_data) < 0.1] = 0.
             plotting.plot_stat_map(nibabel.Nifti1Image(corr_data, affine),
-                      mean_img, title='correlation ' + seed_name,
-                      annotate=False,
-                      colorbar=True, cut_coords=(34, 68, 34))            
+                                   mean_img, title='correlation ' + seed_name,
+                                   annotate=False,
+                                   colorbar=True, cut_coords=(34, 68, 34))
 
         plt.show()

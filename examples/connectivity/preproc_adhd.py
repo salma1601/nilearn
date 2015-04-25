@@ -9,6 +9,7 @@ n_subjects = 1  # subjects to consider for group-sparse covariance (max: 40)
 plotted_subject = 1  # subjects indexes to plot
 
 import numpy as np
+from scipy.fftpack import fft
 
 import matplotlib.pyplot as plt
 import nibabel
@@ -27,14 +28,32 @@ def corr_to_Z(corr):
     return Z
 
 
-def spectral_decompose():
+def spectral_decompose(signal1, signal2):
     """Implements the average spectral decomposition of the correlation
     coefficient between a seed voxel and all the other voxels of the brain. See
     Mapping Functionally Related Regions of Brain with
     Functional Connectivity MR Imaging. Cordes et al., AJNR Am J Neuroradiol
-    21:1636–1644, 2000. """
+    (2000).
+
+    Parameters
+    ==========
+    signal1 : 1D array
+
+    signal2 : 1D array
+
+    Returns
+    =======
+    coefs : 1D array
+    """
 # TODO: check appliable for other measures of connectivity
-    pass
+    n = np.size(signal1)
+    if np.size(signal2) != n:
+        raise ValueError('signals are not of same size')
+
+    norm = np.linalg.norm(signal1) * np.linalg.norm(signal2)
+    fft1 = fft(signal1)
+    fft2 = fft(signal2)
+    return n * (fft1.real * fft2.real + fft1.imag * fft2.imag) / norm
 
 
 def plot_matrices(cov, prec, title):
@@ -149,7 +168,7 @@ import nilearn.input_data
 import nilearn.signal
 
 from sklearn.externals.joblib import Memory
-mem = Memory('nilearn_cache/preproc_adhd/')
+mem = Memory('/home/sb238920/CODE/Parietal/nilearn/nilearn_cache/adhd')
 
 masker = nilearn.input_data.NiftiLabelsMasker(
     labels_img=atlas_img, resampling_target="labels", detrend=False,

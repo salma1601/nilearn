@@ -30,6 +30,11 @@ def plot_histograms(multiple_coefs, preprocessings, colors=[], title='',
 def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
                 xlabel="", ylabel="", zero_diag=False, new_figure=True):
     """Plot connectivity matrix, for a given measure. """
+# TODO: add following parameters and remove new_figure
+# figure : integer or matplotlib figure, optional
+# Matplotlib figure used or its number. If None is given, a new figure is created.
+# axes : matplotlib axes or 4 tuple of float: (xmin, ymin, width, height), optional
+# The axes, or the coordinates, in matplotlib figure space, of the axes used to display the plot. If None, the complete figure is used.
 
     mean_conn = mean_conn.copy()
 

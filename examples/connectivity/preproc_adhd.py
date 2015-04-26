@@ -27,7 +27,7 @@ def corr_to_Z(corr):
         np.arctanh(corr[np.logical_not(corr_is_one)])
     return Z
 
-
+# TOD: plot the signal in nipy.desgin_matrix fashion  to see frequencies
 def spectral_decompose(signal1, signal2):
     """Implements the average spectral decomposition of the correlation
     coefficient between a seed voxel and all the other voxels of the brain. See

@@ -28,7 +28,7 @@ def plot_histograms(multiple_coefs, preprocessings, colors=[], title='',
 
 
 def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
-                xlabel="", ylabel="", zero_diag=True):
+                xlabel="", ylabel="", zero_diag=False, new_figure=True):
     """Plot connectivity matrix, for a given measure. """
 
     mean_conn = mean_conn.copy()
@@ -43,7 +43,9 @@ def plot_matrix(mean_conn, title="connectivity", ticks=[], tick_labels=[],
         vmax = 0.1
 
     # Display connectivity matrix
-    plt.figure()
+    if new_figure:
+        plt.figure()
+
     plt.imshow(mean_conn, interpolation="nearest",
                vmin=-vmax, vmax=vmax, cmap=plt.cm.get_cmap("bwr"))
     plt.colorbar()

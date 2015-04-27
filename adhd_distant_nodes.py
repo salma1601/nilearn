@@ -6,14 +6,16 @@ This example shows how to extract signals from regions defined by an atlas,
 and to estimate different connectivity measures based on these signals.
 """
 overwrite = False
-max_outliers = 9
+max_outliers = 20
+
+import os
 
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
-# TODO : to remove the next imports
-from matplotlib import pylab
-import os
+
+from funtk.connectivity import matrix_stats
+
 
 # Copied from matplotlib 1.2.0 for matplotlib 0.99 compatibility.
 _bwr_data = ((0.0, 0.0, 1.0), (1.0, 1.0, 1.0), (1.0, 0.0, 0.0))
@@ -330,3 +332,10 @@ ax_compare.set_ylabel('with motion')
 ax_difference.set_xlabel('distances')
 ax_difference.set_ylabel(r'conn^{noisy} - conn^{preproc}')
 plt.show()
+
+# TODO: computations (model) tacking into account 2 different observations
+# related to 2 different preprocs, keep in mind we don't have access to noise!
+
+# Statistical tests between noisy and less noisy matrices
+matrix_stats._plot_matrices(all_matrices[3][:20], all_matrices2[3][:20],
+                            axis=0, paired=True)

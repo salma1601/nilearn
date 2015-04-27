@@ -46,6 +46,7 @@ def spectral_decompose(signal1, signal2):
     coefs : 1D array
     """
 # TODO: check appliable for other measures of connectivity
+# TODO: why does not return 1 if signal1 == signal2
     n = np.size(signal1)
     if np.size(signal2) != n:
         raise ValueError('signals are not of same size')
@@ -187,6 +188,9 @@ for n, (func_filename, confound_filename) in enumerate(
 
     print("-- Computing confounds ...")
     print confound_filename
+    # High variance confounds are expected to be the same as aCompCor
+    # localized near the vessels and showing respiratory and cardiac effect
+    # as well as motion
     hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
         func_filename)
     confounds = np.genfromtxt(confound_filename, delimiter='\t', names=True)
@@ -217,7 +221,7 @@ for n, (func_filename, confound_filename) in enumerate(
     region_raw_ts2 = masker.transform(func_filename)
 
     # Check the homogeneity of the signal within the voxels of the ROI
-
+    # TODO: estimate the tSNR
     # Explore the correlation between the confonds and the voxel time series
     img = nibabel.load(func_filename)
     data = img.get_data()

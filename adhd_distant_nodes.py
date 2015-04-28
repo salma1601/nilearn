@@ -202,14 +202,14 @@ for subject_n in range(n_subjects):
         atlas["maps"], resampling_target="maps", detrend=True,
         low_pass=None, high_pass=high_pass, t_r=t_r, standardize=False,
         memory=mem, memory_level=1, verbose=1)
-    region_ts = masker_no_hf_filt.fit_transform(filename,
+    region_ts = masker.fit_transform(filename,
                                      confounds=[confound_file])
     if reorder:
         new_order = aud + striate + dmn + van + dan + ips + cing + basal + occ\
             + motor + vis + salience + temporal + language + cerebellum + dpcc
 
     if subject_n > n_subjects - 1 - max_outliers:
-        noisy_ts = masker_no_hf_filt.fit_transform(
+        noisy_ts = masker.fit_transform(
             filename, confounds=[no_motion_confounds])
         region_ts2 = noisy_ts
     else:
@@ -305,8 +305,8 @@ ax_difference = fig_difference.add_subplot(111)
 fig_compare = plt.figure()
 ax_compare = fig_compare.add_subplot(111)
 threshold = -1-0.2  # threshold to keep high correlations
-dist_th = 0
-for n in range(-1, - max_outliers, -1):
+dist_th = 0.1
+for n in range(-1, - max_outliers, -4):
     conn2 = all_matrices2[3][n]  # TODO: Z-Fisher transform
     conn = all_matrices[3][n]
     diff = all_matrices2[3][n] - all_matrices[3][n]
@@ -337,7 +337,17 @@ plt.show()
 # related to 2 different preprocs, keep in mind we don't have access to noise!
 
 # Statistical tests between noisy and less noisy matrices
-matrix_stats._plot_matrices(all_matrices[3][:max_outliers],
-                            all_matrices2[3][:max_outliers],
-                            axis=0, paired=True, corrected=False)
+baseline = all_matrices[3][n_subjects - max_outliers:n_subjects]
+follow_up = all_matrices2[3][n_subjects - max_outliers:n_subjects]
+matrix_stats._plot_matrices(baseline, follow_up, axis=0, paired=True,
+                            corrected=False)
+
+effect, pval = matrix_stats._compare(baseline, follow_up, axis=0, paired=True)
+effect[pval > 0.05] = 0
+long_range_matrix = distance_matrix.copy()
+long_range_matrix[long_range_matrix < dist_th] = 0
+tri_mask = np.tril(long_range_matrix) > 0
+long_range_matrix[tri_mask] = effect[tri_mask]
+plot_matrix(long_range_matrix, title='distance and difference between preprocs')
+
 plt.show()

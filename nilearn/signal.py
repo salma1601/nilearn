@@ -451,10 +451,7 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
 
         confounds = _ensure_float(confounds)
         confounds = _standardize(confounds, normalize=True, detrend=detrend)
-        print confounds.shape
         Q = linalg.qr(confounds, mode='economic')[0]
-        print Q.shape
-        print signals.shape
         signals -= np.dot(Q, np.dot(Q.T, signals))
 
     if low_pass is not None or high_pass is not None:

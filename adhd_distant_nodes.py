@@ -337,5 +337,7 @@ plt.show()
 # related to 2 different preprocs, keep in mind we don't have access to noise!
 
 # Statistical tests between noisy and less noisy matrices
-matrix_stats._plot_matrices(all_matrices[3][:20], all_matrices2[3][:20],
-                            axis=0, paired=True)
+matrix_stats._plot_matrices(all_matrices[3][:max_outliers],
+                            all_matrices2[3][:max_outliers],
+                            axis=0, paired=True, corrected=False)
+plt.show()

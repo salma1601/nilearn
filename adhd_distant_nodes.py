@@ -160,6 +160,7 @@ reorder = False
 subjects3 = []
 gms = []
 sites = []
+mean_motions = []
 for subject_n in range(n_subjects):
     filename = dataset["func"][subject_n]
     print("Processing file %s" % filename)
@@ -167,6 +168,17 @@ for subject_n in range(n_subjects):
     print("-- Computing confounds ...")
     confound_file = dataset["confounds"][subject_n]
     hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(filename)
+
+    # CSF, WM and global intensities
+    means = []
+    for col in [0, 3, 4]:
+        confounds = np.genfromtxt(confound_file, delimiter='\t', names=True,
+                                  usecols=(col))
+        means.append(np.array(
+            [float(conf[0]) for conf in confounds]))
+    means = np.array(means).T
+
+    # Rotation and translation
     motion_confounds = []
     for col in range(5, 11):
         confounds = np.genfromtxt(confound_file, delimiter='\t', names=True,
@@ -174,6 +186,13 @@ for subject_n in range(n_subjects):
         motion_confounds.append(np.array(
             [float(conf[0]) for conf in confounds]))
     motion_confounds = np.array(motion_confounds).T
+
+    # Relative motion
+    relative_motion = motion_confounds.copy()
+    relative_motion[1:] -= motion_confounds[:-1]
+    mean_motions.append(np.linalg.norm(motion_confounds, axis=1).mean())
+
+    # All confounds except motion
     no_motion_confounds = []
     for col in range(0, 5) + range(11, 17):
         confounds = np.genfromtxt(confound_file, delimiter='\t', names=True,
@@ -196,7 +215,7 @@ for subject_n in range(n_subjects):
     high_pass = .009
     masker = nilearn.input_data.NiftiMapsMasker(
         atlas["maps"], resampling_target="maps", detrend=True,
-        low_pass=low_pass, high_pass=high_pass, t_r=t_r, standardize=False,
+        low_pass=low_pass, high_pass=None, t_r=t_r, standardize=True,
         memory=mem, memory_level=1, verbose=1)
     masker_no_hf_filt = nilearn.input_data.NiftiMapsMasker(
         atlas["maps"], resampling_target="maps", detrend=True,
@@ -204,6 +223,8 @@ for subject_n in range(n_subjects):
         memory=mem, memory_level=1, verbose=1)
     region_ts = masker.fit_transform(filename,
                                      confounds=[confound_file])
+    region_ts = masker.fit_transform(filename,
+                                     confounds=[means, relative_motion])
     if reorder:
         new_order = aud + striate + dmn + van + dan + ips + cing + basal + occ\
             + motor + vis + salience + temporal + language + cerebellum + dpcc
@@ -241,7 +262,7 @@ from nilearn.connectivity.embedding import (map_sym, cov_to_corr,
 from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
 estimators = [('ledoit', LedoitWolf()), ('emp', EmpiricalCovariance()),
               ('mcd', MinCovDet())]
-n_estimator = 0
+n_estimator = 1
 
 # Without outliers
 for measure in measures:
@@ -304,8 +325,8 @@ fig_difference = plt.figure()
 ax_difference = fig_difference.add_subplot(111)
 fig_compare = plt.figure()
 ax_compare = fig_compare.add_subplot(111)
-threshold = -1-0.2  # threshold to keep high correlations
-dist_th = 0.1
+threshold = - 1 - 0.2  # threshold to keep high correlations
+dist_th = 0.12
 for n in range(-1, - max_outliers, -4):
     conn2 = all_matrices2[3][n]  # TODO: Z-Fisher transform
     conn = all_matrices[3][n]
@@ -319,18 +340,64 @@ for n in range(-1, - max_outliers, -4):
     long_range_matrix[tri_mask] = diff[tri_mask]
     plot_matrix(long_range_matrix, title='subject {}'.format(n_subjects + n))
 
-    ax_compare.scatter(conn.flatten(), conn2.flatten(), c='r')
+#    ax_compare.scatter(distance_matrix.flatten(), conn.flatten(), c='g')
+#    ax_compare.scatter(distance_matrix.flatten(), conn2.flatten(), c='r')
+    ax_compare.scatter(conn[distance_matrix > dist_th].flatten(),
+                       conn2[distance_matrix > dist_th].flatten(), c='b')
+    ax_compare.scatter(conn[distance_matrix < dist_th / 3].flatten(),
+                       conn2[distance_matrix < dist_th / 3].flatten(), c='r')
     ax_compare.plot(conn.flatten(), conn.flatten())
+
+    # TODO: 2 clouds with different colors, x: conn, y: conn2
     ax_difference.scatter(distance_matrix[conn > threshold].flatten(),
                           conn[conn > threshold].flatten())
     xgrid = np.linspace(diff[conn > threshold].min(),
                         diff[conn > threshold].max())
     ax_difference.plot(xgrid, np.zeros(xgrid.size))
 
-ax_compare.set_xlabel('without motion')
-ax_compare.set_ylabel('with motion')
+ax_compare.set_xlabel('conn^{preproc}')
+ax_compare.set_ylabel('conn^{noisy}')
 ax_difference.set_xlabel('distances')
 ax_difference.set_ylabel(r'conn^{noisy} - conn^{preproc}')
+plt.show()
+
+# Correlation between motion and connectivity, relationship with distance
+mean_motion = []
+for n in range(n_subjects):
+    confound_file = dataset["confounds"][n]
+    motion_confounds = []
+    for col in range(8, 11):
+        confounds = np.genfromtxt(confound_file, delimiter='\t', names=True,
+                                  usecols=(col))
+        motion_confounds.append(np.array(
+            [float(conf[0]) for conf in confounds]))
+    motion_confounds = np.array(motion_confounds).T
+    print motion_confounds.mean(axis=0)
+    mean_motion.append(np.linalg.norm(motion_confounds, axis=1).mean())
+
+distance_matrix = coords - coords[:, np.newaxis]
+distance_matrix = np.linalg.norm(distance_matrix, axis=-1) / 100
+from scipy.stats import pearsonr
+correlation = np.zeros(distance_matrix.shape)
+all_indices = np.triu_indices(distance_matrix.shape[0], 1)
+for indices in zip(*all_indices):
+    conn = []
+    for n in range(n_subjects):
+        conn.append(all_matrices[3][n][indices])
+    if np.mean(conn) > -1:
+        correlation[indices] = pearsonr(mean_motion, conn)[0]
+
+#distance_matrix[distance_matrix > .96] = 0
+#correlation[distance_matrix > .96] = 0
+dist = distance_matrix[all_indices]
+corr = correlation[all_indices]
+#dist = dist[np.abs(corr > 0)]
+#corr = corr[np.abs(corr > 0)]
+plt.scatter(dist, corr)
+plt.xlabel('euclidean distance (mm)')
+plt.ylabel('correlation of motion and connectivity')
+r, p = pearsonr(dist, corr)
+print('Pearson correlation is {0} with pval {1}'.format(r, p))
 plt.show()
 
 # TODO: computations (model) tacking into account 2 different observations
@@ -339,15 +406,53 @@ plt.show()
 # Statistical tests between noisy and less noisy matrices
 baseline = all_matrices[3][n_subjects - max_outliers:n_subjects]
 follow_up = all_matrices2[3][n_subjects - max_outliers:n_subjects]
-matrix_stats._plot_matrices(baseline, follow_up, axis=0, paired=True,
-                            corrected=False)
+signif_b, signif_f, signif_diff = matrix_stats.compare(baseline, follow_up,
+                                                       axis=0, paired=True,
+                                                       corrected=False)
+matrix_stats._plot_matrices([signif_b, signif_f, signif_diff],
+                            titles=['baseline', 'follow-up', 'difference'])
 
-effect, pval = matrix_stats._compare(baseline, follow_up, axis=0, paired=True)
-effect[pval > 0.05] = 0
 long_range_matrix = distance_matrix.copy()
 long_range_matrix[long_range_matrix < dist_th] = 0
 tri_mask = np.tril(long_range_matrix) > 0
-long_range_matrix[tri_mask] = effect[tri_mask]
-plot_matrix(long_range_matrix, title='distance and difference between preprocs')
+long_range_matrix[tri_mask] = signif_diff[tri_mask]
+plot_matrix(long_range_matrix,
+            title='distance and difference between preprocs')
 
+plt.show()
+
+# Correlation between motion and connectivity, relationship with distance
+#########################################################################
+# Compute Euclidean distances between nodes in mm
+distance_matrix = coords - coords[:, np.newaxis]
+distance_matrix = np.linalg.norm(distance_matrix, axis=-1)
+
+# Compute pearson correlation between motion and connectivity
+correlation = np.zeros(distance_matrix.shape)
+all_indices = np.triu_indices(distance_matrix.shape[0], 1)
+x_indices = []
+y_indices = []
+for indices in zip(*all_indices):
+    conn = []
+    for n in range(n_subjects):
+        conn.append(all_matrices[3][n][indices])
+    if np.mean(conn) > -1:
+        correlation[indices] = pearsonr(mean_motions, conn)[0]
+        x_indices.append(indices[0])
+        y_indices.append(indices[1])
+
+new_indices = (x_indices, y_indices)
+
+# Scatter plot
+#distance_matrix[distance_matrix > .96] = 0
+#correlation[distance_matrix > .96] = 0
+dist = distance_matrix[new_indices]
+corr = correlation[new_indices]
+#dist = dist[np.abs(corr > 0)]
+#corr = corr[np.abs(corr > 0)]
+plt.scatter(dist, corr)
+plt.xlabel('euclidean distance (mm)')
+plt.ylabel('correlation of motion and connectivity')
+r, p = pearsonr(dist, corr)
+print('Pearson correlation is {0} with pval {1}'.format(r, p))
 plt.show()

@@ -190,7 +190,7 @@ for subject_n in range(n_subjects):
     # Relative motion
     relative_motion = motion_confounds.copy()
     relative_motion[1:] -= motion_confounds[:-1]
-    mean_motions.append(np.linalg.norm(motion_confounds, axis=1).mean())
+    mean_motions.append(np.linalg.norm(relative_motion[3:], axis=1).mean())
 
     # All confounds except motion
     no_motion_confounds = []
@@ -215,14 +215,12 @@ for subject_n in range(n_subjects):
     high_pass = .009
     masker = nilearn.input_data.NiftiMapsMasker(
         atlas["maps"], resampling_target="maps", detrend=True,
-        low_pass=low_pass, high_pass=None, t_r=t_r, standardize=True,
+        low_pass=low_pass, high_pass=high_pass, t_r=t_r, standardize=True,
         memory=mem, memory_level=1, verbose=1)
     masker_no_hf_filt = nilearn.input_data.NiftiMapsMasker(
         atlas["maps"], resampling_target="maps", detrend=True,
         low_pass=None, high_pass=high_pass, t_r=t_r, standardize=False,
         memory=mem, memory_level=1, verbose=1)
-    region_ts = masker.fit_transform(filename,
-                                     confounds=[confound_file])
     region_ts = masker.fit_transform(filename,
                                      confounds=[means, relative_motion])
     if reorder:
@@ -424,6 +422,7 @@ plt.show()
 # Correlation between motion and connectivity, relationship with distance
 #########################################################################
 # Compute Euclidean distances between nodes in mm
+print(' Reproducing Satterwaith results')
 distance_matrix = coords - coords[:, np.newaxis]
 distance_matrix = np.linalg.norm(distance_matrix, axis=-1)
 
@@ -436,23 +435,23 @@ for indices in zip(*all_indices):
     conn = []
     for n in range(n_subjects):
         conn.append(all_matrices[3][n][indices])
-    if np.mean(conn) > -1:
-        correlation[indices] = pearsonr(mean_motions, conn)[0]
-        x_indices.append(indices[0])
-        y_indices.append(indices[1])
+    correlation[indices] = pearsonr(mean_motions, conn)[0]
+    x_indices.append(indices[0])
+    y_indices.append(indices[1])
 
 new_indices = (x_indices, y_indices)
 
 # Scatter plot
-#distance_matrix[distance_matrix > .96] = 0
-#correlation[distance_matrix > .96] = 0
 dist = distance_matrix[new_indices]
 corr = correlation[new_indices]
-#dist = dist[np.abs(corr > 0)]
-#corr = corr[np.abs(corr > 0)]
 plt.scatter(dist, corr)
 plt.xlabel('euclidean distance (mm)')
 plt.ylabel('correlation of motion and connectivity')
 r, p = pearsonr(dist, corr)
 print('Pearson correlation is {0} with pval {1}'.format(r, p))
+t = np.polyfit(dist, corr, 1, full=True)
+print('corr = {0} (dist - {1})'.format(t[0][0], - t[0][1] / t[0][0]))
+xp = np.linspace(dist.min(), dist.max(), 100)
+p1 = np.poly1d(np.polyfit(dist, corr, 1))
+plt.plot(xp, p1(xp))
 plt.show()

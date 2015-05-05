@@ -65,7 +65,7 @@ def compute_connectivity(subjects, estimator=EmpiricalCovariance(),
 
 def split_motion(motions, percent=50, ord=None):
     """Classifies motion as high and low.
-    Parameters
+    Parameterss
     ==========
     motions : array like, shape (n_subjects, n_samples)
         Motion values for each subject.
@@ -87,6 +87,71 @@ def split_motion(motions, percent=50, ord=None):
 
 # TODO: plot connectivity matrix with distances matrix
 if __name__ == '__main__':
+    rois = np.load('/home/sb238920/nilearn_data/servier/roi_coordinates.npy')
+    roi_names = np.load('/home/sb238920/nilearn_data/servier/roi_names.npy')
+    coords = []
+    for name in roi_names:
+        coords.append(rois[rois[:, 0] == name + '_1_1'])
+
+    # TODO: use the mean of distances to the lateralized nodes
+    # TODO: put the conn.mat in the same folder as the signals.npy
+    data_path = '/volatile/new/salma'
+    conn_folders = [os.path.join(data_path, folder, 'conn_study') for folder
+                    in ['subject1to40_noDespike', 'subject1to40_noFilt']]
+    preprocs = ['no Despike', 'no Filt']
+    subjects = np.load(os.path.join(conn_folders[0], 'signals_ReSt1_Drug.npy'))
+    subjects2 = np.load(os.path.join(conn_folders[-1],
+                                     'signals_ReSt1_Drug.npy'))
+
+
+    n_subjects = len(subjects)
+    import nilearn.connectivity
+    print("-- Measuring connecivity ...")
+    all_matrices = []
+    mean_matrices = []
+    all_matrices2 = []
+    mean_matrices2 = []
+    measures = ['covariance', 'precision', 'tangent', 'correlation',
+                'partial correlation']
+    from nilearn.connectivity.embedding import (map_sym, cov_to_corr,
+                                                prec_to_partial)
+    from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
+    estimators = [('ledoit', LedoitWolf()), ('emp', EmpiricalCovariance()),
+                  ('mcd', MinCovDet())]
+    n_estimator = 0
+
+    # Without outliers
+    for measure in measures:
+        estimator = {'cov_estimator': estimators[n_estimator][1],
+                     'kind': measure}
+        cov_embedding = nilearn.connectivity.CovEmbedding(**estimator)
+        matrices = nilearn.connectivity.vec_to_sym(
+            cov_embedding.fit_transform(subjects))
+        all_matrices.append(matrices)
+        if measure == 'tangent':
+            mean = cov_embedding.mean_cov_
+        else:
+            mean = matrices.mean(axis=0)
+        mean_matrices.append(mean)
+
+    # With outliers
+    all_matrices2 = []
+    mean_matrices2 = []
+    for measure in measures:
+        estimator = {'cov_estimator': estimators[n_estimator][1],
+                     'kind': measure}
+        cov_embedding = nilearn.connectivity.CovEmbedding(**estimator)
+        matrices2 = nilearn.connectivity.vec_to_sym(
+            cov_embedding.fit_transform(subjects2))
+        all_matrices2.append(matrices2)
+        if measure == 'tangent':
+            mean2 = cov_embedding.mean_cov_
+        else:
+            mean2 = matrices2.mean(axis=0)
+        mean_matrices2.append(mean2)
+
+
+def _plot_signals():
     data_path = '/volatile/new/salma'
     conn_folders = [os.path.join(data_path, folder, 'conn_study') for folder
                     in ['subject1to40_noDespike', 'subject1to40_noFilt']]
@@ -136,7 +201,7 @@ if __name__ == '__main__':
     
     # TODO: compare within subject across ROIs, within ROI across subjects
     plt.subplot(6, 1, 1)
-    plt.plot(subjects_placebo[s1][:, 0])
+    plt.plot(subjects_placebo[-1][:, 0])
     plt.ylabel('sub 40, region {}')
     plt.subplot(6, 1, 2)
     plt.plot(dr[:, 0])

@@ -67,8 +67,8 @@ else:
 
 template_ntwk = [('WMN', WMN), ('AN', AN), ('DMN', DMN)]
 conn_folder = "/volatile/new/salma/subject1to40/conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1"
-conn_folder = "/volatile/new/salma/subject1to40_noFilt/conn_study"
-conn_folder = "/volatile/new/salma/subject1to40_noFilt/conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1"
+#conn_folder = "/volatile/new/salma/subject1to40_noFilt/conn_study"
+#conn_folder = "/volatile/new/salma/subject1to40_noFilt/conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1"
 mc = MyConn('from_conn', conn_folder)
 mc.setup()
 #fake_mc = MyConn(setup='test')
@@ -105,132 +105,181 @@ mean_matrices = []
 all_matrices = []
 measures = ["covariance", "precision", "tangent", "correlation",
              "partial correlation"]
-for kind in measures:
-    estimators = {'kind': kind, 'cov_estimator': EmpiricalCovariance()}
-#    for condition1, condition2 in conditions:
-    condition1 = 'ReSt1_Placebo'
-    condition2 = 'Nbac2_Placebo'
-    print(condition1, condition2)
-    signals1 = mc.runs_[condition1]
-    signals2 = mc.runs_[condition2]
-    signals_list = [subj for subj in signals1] + [subj for subj in signals2]
-    cov_embedding = CovEmbedding(**estimators)
-    X = cov_embedding.fit_transform(signals_list)
-    print estimators['kind']
-    #fre_mean = cov_embedding.mean_cov_
-    nsubjects = X.shape[0]# / 2
-    matrices = vec_to_sym(X)
-    all_matrices.append(matrices)
-    if kind == 'tangent':
-        mean2 = cov_embedding.mean_cov_
-    else:
-        mean2 = matrices.mean(axis=0)
-    mean_matrices.append(mean2)
-
-    X = [vec_to_sym(x) for x in X]
-    X = np.asarray(X)
-    mc.fc_[(condition1, estimators['kind'])] = X[:nsubjects, :]
-    mc.fc_[(condition2, estimators['kind'])] = X[nsubjects:, :]
-    mc.measure_names = mc.measure_names + (estimators['kind'], )
-    paired_tests = [([condition1, condition2], ['All'])]
-    if False:
-        mc.results(paired_tests, corrected=True)  # add masking option
-
-        # Plotting second level result, TODO: encapsulate in second_level_new
-        test_name = "All " + condition1 + " vs All " + condition2
-        measure_name = estimators['kind']
-        comp = mc.results_[(test_name, measure_name)]
-        th = 0.05
-        comp.threshold(th)
-        test_names = [test_name]
-        measure_names = [measure_name]
-        ticks = []
-        tickLabels = []
-        titles = [condition2, condition1, "difference"]
-        ylabels = [kind, kind, ""]
-        abs_maxs = [None, None, None]
-        abs_mins = [None, None, None]
-        symmetric_cbs = [True, True, True]
-        fig = plt.figure(figsize=(10, 7))
-        plt.subplots_adjust(hspace=0.8, wspace=0.5)
-        signifs = [comp.signif_follow_up_,
-                   comp.signif_baseline_,
-                   comp.signif_difference_] #vec_to_sym(comp.signif_difference_)
-        matr = zip(titles, signifs)
-        for i, (name, this_matr) in enumerate(matr):
-            plt.subplot(1, 3, i + 1)
-            plot_matrix(this_matr, plt.gca(), title = name, ticks=ticks, tickLabels=tickLabels,
-                        abs_max=abs_maxs[i], abs_min=abs_mins[i],
-                        symmetric_cb=symmetric_cbs[i], ylabel = ylabels[i])
-        plt.draw()  # Draws, but does not block
-        # raw_input() # waiting for entry
-        fig_title = test_name + "_" + measure_name
-        fig_title = fig_title.replace(" ", "_")
-        filename = fig_dir + fig_title + ".pdf"
-        overwrite = True
+mean_scores = []
+std_scores = []
+for conditions in [('ReSt1_Placebo', 'Nbac2_Placebo'),
+                   ('ReSt1_Placebo', 'Nbac3_Placebo')]:
+    for kind in measures:
+        estimators = {'kind': kind, 'cov_estimator': EmpiricalCovariance()}
+    #    for condition1, condition2 in conditions:
+        condition1 = conditions[0]
+        condition2 = conditions[1]
+        print(condition1, condition2)
+        signals1 = mc.runs_[condition1]
+        signals2 = mc.runs_[condition2]
+        signals_list = [subj for subj in signals1] + [subj for subj in signals2]
+        cov_embedding = CovEmbedding(**estimators)
+        X = cov_embedding.fit_transform(signals_list)
+        print estimators['kind']
+        #fre_mean = cov_embedding.mean_cov_
+        nsubjects = X.shape[0]# / 2
+        matrices = vec_to_sym(X)
+        all_matrices.append(matrices)
+        if kind == 'tangent':
+            mean2 = cov_embedding.mean_cov_
+        else:
+            mean2 = matrices.mean(axis=0)
+        mean_matrices.append(mean2)
     
-    plt.show()
+        X = [vec_to_sym(x) for x in X]
+        X = np.asarray(X)
+        mc.fc_[(condition1, estimators['kind'])] = X[:nsubjects, :]
+        mc.fc_[(condition2, estimators['kind'])] = X[nsubjects:, :]
+        mc.measure_names = mc.measure_names + (estimators['kind'], )
+        paired_tests = [([condition1, condition2], ['All'])]
+        if False:
+            mc.results(paired_tests, corrected=True)  # add masking option
+    
+            # Plotting second level result, TODO: encapsulate in second_level_new
+            test_name = "All " + condition1 + " vs All " + condition2
+            measure_name = estimators['kind']
+            comp = mc.results_[(test_name, measure_name)]
+            th = 0.05
+            comp.threshold(th)
+            test_names = [test_name]
+            measure_names = [measure_name]
+            ticks = []
+            tickLabels = []
+            titles = [condition2, condition1, "difference"]
+            ylabels = [kind, kind, ""]
+            abs_maxs = [None, None, None]
+            abs_mins = [None, None, None]
+            symmetric_cbs = [True, True, True]
+            fig = plt.figure(figsize=(10, 7))
+            plt.subplots_adjust(hspace=0.8, wspace=0.5)
+            signifs = [comp.signif_follow_up_,
+                       comp.signif_baseline_,
+                       comp.signif_difference_] #vec_to_sym(comp.signif_difference_)
+            matr = zip(titles, signifs)
+            for i, (name, this_matr) in enumerate(matr):
+                plt.subplot(1, 3, i + 1)
+                plot_matrix(this_matr, plt.gca(), title = name, ticks=ticks, tickLabels=tickLabels,
+                            abs_max=abs_maxs[i], abs_min=abs_mins[i],
+                            symmetric_cb=symmetric_cbs[i], ylabel = ylabels[i])
+            plt.draw()  # Draws, but does not block
+            # raw_input() # waiting for entry
+            fig_title = test_name + "_" + measure_name
+            fig_title = fig_title.replace(" ", "_")
+            filename = fig_dir + fig_title + ".pdf"
+            overwrite = True
+        
+        plt.show()
+        
+        
+        #    mc.results_fig(th, fig_dir, "overwrite", test_names,
+        #                 measure_names)
+        #    mc.performances(perfs_file, test)
+        #    overwrite = True
+        #    mc.analysis_fig = (overwrite,'/home/salma/slides/servier2/Images')
     
     
-    #    mc.results_fig(th, fig_dir, "overwrite", test_names,
-    #                 measure_names)
-    #    mc.performances(perfs_file, test)
-    #    overwrite = True
-    #    mc.analysis_fig = (overwrite,'/home/salma/slides/servier2/Images')
+    covariances = all_matrices[0]
+    precisions = all_matrices[1]
+    tangents = all_matrices[2]
+    correlations = all_matrices[3]
+    partials = all_matrices[4]
+    Z_correlations = corr_to_Z(correlations)
+    Z_partials = corr_to_Z(partials, tol=1e-9)
+    Z_correlations[np.isinf(Z_correlations)] = 1.
+    Z_partials[np.isinf(Z_partials)] = 1.
+    
+    wmn = range(4)
+    an = range(5, 9)
+    dmn = range(11, 16)
+    
+    wmn_an = range(0,8)
+    dmn_big = range(9, 16)
+    wmn_an_2b = [0,1,2,3,5,6,7,8]
+    # Predict site
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.svm import LinearSVC
+    from sklearn.cross_validation import StratifiedKFold, StratifiedShuffleSplit
+    from sklearn.metrics import accuracy_score
+    from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
+    from sklearn.cross_validation import permutation_test_score, cross_val_score
+    from sklearn.preprocessing.label import LabelBinarizer
+    from sklearn import lda
+    sites = np.repeat(np.arange(5), 8)
+    for coefs, measure in zip([covariances, precisions, tangents, correlations,
+                               partials], measures):
+        # Predict task vs rest
+        y = np.hstack((np.zeros(n_subjects), np.ones(n_subjects)))
+        skf = StratifiedKFold(y, 3)
+        regions = range(16)
+        X = coefs[:, regions, :]
+        X = coefs[:, :, regions]
+        X = sym_to_vec(X)
+    #    X = np.hstack((X, dst[:, np.newaxis]))
+        clf_lda = OneVsRestClassifier(lda.LDA())
+        score, null_scores, p_val = permutation_test_score(clf_lda, X, y, cv=skf,
+                                                           scoring='accuracy')
+    #    print 'score ADHD: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
+    #    clf_log = OneVsOneClassifier(LinearSVC(random_state=0))
+    #    score, null_scores, p_val = permutation_test_score(clf_log, X, y, cv=skf,
+    #                                                       scoring='accuracy')
+        print '=========================================='
+        print measure
+        print 'score lda: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
+        clf_svc_ovr = LinearSVC(random_state=0, multi_class='ovr')
+        score, null_scores, p_val = permutation_test_score(clf_svc_ovr, X, y, cv=skf,
+                                                           scoring='accuracy')
+        print 'score linear svc: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
+        clf_svc_ovr = LinearSVC(random_state=0, multi_class='ovr')
+        score, null_scores, p_val = permutation_test_score(clf_svc_ovr, X, y, cv=3,
+                                                           scoring='accuracy')
+        print 'score linear svc, cv=3: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
+    
+        # Shuffle split stategy
+        skf = StratifiedShuffleSplit(y, n_iter=10000, test_size=0.33)
+        clf_svc_ovr = LinearSVC(random_state=0, multi_class='ovr')
+        score, null_scores, p_val = permutation_test_score(clf_svc_ovr, X, y, cv=3,
+                                                           scoring='accuracy')
+        cv_scores = []
+        for train_index, test_index in skf:
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+            clf_svc_ovr.fit(X_train, y_train)
+            cv_scores.append(clf_svc_ovr.score(X_test, y_test))
+        mean_scores.append(np.mean(cv_scores)  * 100)
+        std_scores.append(np.std(cv_scores)  * 100)
 
+#importances = forest.feature_importances_
+#std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+#             axis=0)
+#indices = np.argsort(importances)[::-1]
 
-covariances = all_matrices[0]
-precisions = all_matrices[1]
-tangents = all_matrices[2]
-correlations = all_matrices[3]
-partials = all_matrices[4]
-Z_correlations = corr_to_Z(correlations)
-Z_partials = corr_to_Z(partials, tol=1e-9)
-Z_correlations[np.isinf(Z_correlations)] = 1.
-Z_partials[np.isinf(Z_partials)] = 1.
+# Print the feature ranking
+#print("Feature ranking:")
 
-wmn = range(4)
-an = range(5, 9)
-dmn = range(11, 16)
+#for f in range(10):
+#    print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
 
-wmn_an = range(0,8)
-dmn_big = range(9, 16)
-wmn_an_2b = [0,1,2,3,5,6,7,8]
-# Predict site
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC
-from sklearn.cross_validation import StratifiedKFold
-from sklearn.metrics import accuracy_score
-from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
-from sklearn.cross_validation import permutation_test_score, cross_val_score
-from sklearn.preprocessing.label import LabelBinarizer
-from sklearn import lda
-sites = np.repeat(np.arange(5), 8)
-for coefs, measure in zip([covariances, precisions, tangents, correlations,
-                           partials], measures):
-    # Predict task vs rest
-    y = np.hstack((np.zeros(n_subjects), np.ones(n_subjects)))
-    skf = StratifiedKFold(y, 3)
-    regions = range(16)
-    X = coefs[:, regions, :]
-    X = coefs[:, :, regions]
-    X = sym_to_vec(X)
-#    X = np.hstack((X, dst[:, np.newaxis]))
-    clf_lda = OneVsRestClassifier(lda.LDA())
-    score, null_scores, p_val = permutation_test_score(clf_lda, X, y, cv=skf,
-                                                       scoring='accuracy')
-#    print 'score ADHD: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
-#    clf_log = OneVsOneClassifier(LinearSVC(random_state=0))
-#    score, null_scores, p_val = permutation_test_score(clf_log, X, y, cv=skf,
-#                                                       scoring='accuracy')
-    print '=========================================='
-    print measure
-    print 'score lda: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
-    clf_svc_ovr = LinearSVC(random_state=0, multi_class='ovr')
-    score, null_scores, p_val = permutation_test_score(clf_svc_ovr, X, y, cv=skf,
-                                                       scoring='accuracy')
-    print 'score linear svc: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
-    clf_svc_ovr = LinearSVC(random_state=0, multi_class='ovr')
-    score, null_scores, p_val = permutation_test_score(clf_svc_ovr, X, y, cv=3,
-                                                       scoring='accuracy')
-    print 'score linear svc, cv=3: ', score, ', null score is', np.mean(null_scores), 'pval = ', p_val
+# Plot the feature importances of the forest
+mean_scores = np.array(mean_scores)
+std_scores = np.array(std_scores)
+plt.figure()
+indices = [2, 7]
+plt.bar([0, 4], mean_scores[indices],
+        color="g", yerr=std_scores[indices], align="center")
+indices = [3, 8]
+plt.bar([1, 5], mean_scores[indices],
+        color="b", yerr=std_scores[indices], align="center")
+indices = [4, 9]
+plt.bar([2, 6], mean_scores[indices],
+        color="r", yerr=std_scores[indices], align="center")
+plt.xticks([1, 5], ['rest1 vs 2-back', 'rest1 vs 3-back'], fontsize='17')
+plt.xlim([-1, 7])
+plt.ylim([50, 100])
+plt.ylabel('Classification accuracy (%)', fontsize='17')
+plt.legend(['tangent', 'correlation', 'partial'], fontsize='17')
+plt.show()

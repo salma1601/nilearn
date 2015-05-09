@@ -39,3 +39,16 @@ for confounds in [confounds_full, confounds_cst, confounds_twice]:
         confounds.shape[-1],
         np.linalg.matrix_rank(confounds),
         np.max(np.abs(cleaned_signal - residual))))
+
+    # Automatic pivoting
+    Q, R, _ = qr(confounds, mode='economic', pivoting=True)
+    Q_full = Q[:, np.abs(np.diag(R)) > np.finfo(np.float).eps * 100]
+    cleaned = to_clean - np.dot(Q_full, np.dot(Q_full.T, to_clean))
+#    np.testing.assert_allclose(cleaned, residual)
+
+    # Manual pivoting
+    Q, R = qr(confounds, mode='economic')
+    confounds_full = confounds[:, np.abs(np.diag(R)) > np.finfo(np.float).eps * 100]
+    Q, R = qr(confounds_full, mode='economic')
+    cleaned = to_clean - np.dot(Q_full, np.dot(Q_full.T, to_clean))
+#    np.testing.assert_allclose(cleaned, residual)

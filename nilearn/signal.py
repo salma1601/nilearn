@@ -451,9 +451,23 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
 
         confounds = _ensure_float(confounds)
         confounds = _standardize(confounds, normalize=True, detrend=detrend)
-        Q, R, _ = linalg.qr(confounds, mode='economic', pivoting=True)
-        Q_full = Q[:, np.abs(np.diag(R)) > np.finfo(np.float).eps * 100]
-        signals -= np.dot(Q_full, np.dot(Q_full.T, signals))
+
+        if (LooseVersion(scipy.__version__) < LooseVersion('0.10.0')):
+            # pivoting is implemented only from scipy 0.10.1
+            Q, R, _ = linalg.qr(confounds, mode='economic', pivoting=True)
+            Q = Q[:, np.abs(np.diag(R)) > np.finfo(np.float).eps * 100.]
+            signals -= Q.dot(Q.T).dot(signals)
+        else:
+            Q, R = linalg.qr(confounds, mode='economic')
+            non_null_diagonal = np.abs(np.diag(R)) > np.finfo(np.float).eps * 100.
+            if np.all(non_null_diagonal):
+                signals -= Q.dot(Q.T).dot(signals)
+            else:
+                R = R[:, non_null_diagonal]
+                confounds = confounds[:, non_null_diagonal]
+                inv = np.linalg.inv(np.dot(R.T, R))  # check inversion
+                print inv
+                signals -= confounds.dot(inv).dot(confounds.T).dot(signals)
 
     if low_pass is not None or high_pass is not None:
         signals = butterworth(signals, sampling_rate=1. / t_r,

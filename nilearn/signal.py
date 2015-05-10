@@ -452,21 +452,20 @@ def clean(signals, detrend=True, standardize=True, confounds=None,
         confounds = _ensure_float(confounds)
         confounds = _standardize(confounds, normalize=True, detrend=detrend)
 
-        if (LooseVersion(scipy.__version__) < LooseVersion('0.10.0')):
-            # pivoting is implemented only from scipy 0.10.1
+        if (LooseVersion(scipy.__version__) > LooseVersion('0.9.0')):
+            # Pivoting in qr decomposition was added in scipy 0.10
             Q, R, _ = linalg.qr(confounds, mode='economic', pivoting=True)
             Q = Q[:, np.abs(np.diag(R)) > np.finfo(np.float).eps * 100.]
             signals -= Q.dot(Q.T).dot(signals)
         else:
             Q, R = linalg.qr(confounds, mode='economic')
-            non_null_diagonal = np.abs(np.diag(R)) > np.finfo(np.float).eps * 100.
-            if np.all(non_null_diagonal):
+            non_null_diag = np.abs(np.diag(R)) > np.finfo(np.float).eps * 100.
+            if np.all(non_null_diag):
                 signals -= Q.dot(Q.T).dot(signals)
-            else:
-                R = R[:, non_null_diagonal]
-                confounds = confounds[:, non_null_diagonal]
-                inv = np.linalg.inv(np.dot(R.T, R))  # check inversion
-                print inv
+            elif np.any(non_null_diag):
+                R = R[:, non_null_diag]
+                confounds = confounds[:, non_null_diag]
+                inv = scipy.linalg.inv(np.dot(R.T, R))
                 signals -= confounds.dot(inv).dot(confounds.T).dot(signals)
 
     if low_pass is not None or high_pass is not None:

@@ -232,7 +232,7 @@ else:
 subjects = []
 nips = []
 sessions = []
-n_session = 0
+n_session = 3
 prefix = prefixes[n_session]
 for n, folder in enumerate(folders):
     func_filename = single_glob(os.path.join(folder,

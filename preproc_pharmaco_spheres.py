@@ -232,7 +232,7 @@ else:
 subjects = []
 nips = []
 sessions = []
-n_session = 3
+n_session = 0
 prefix = prefixes[n_session]
 for n, folder in enumerate(folders):
     func_filename = single_glob(os.path.join(folder,
@@ -263,7 +263,7 @@ for n, folder in enumerate(folders):
 
     print("-- Computing confounds ...")
     hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
-        func_filename)
+        func_filename, n_confounds=10)
 
     motion_confounds = np.genfromtxt(motion_filename)
     relative_motion = motion_confounds.copy()
@@ -331,7 +331,8 @@ for n, folder in enumerate(folders):
 
     print("-- Computing region time series ...")
     spheres_masker = nilearn.input_data.NiftiSpheresMasker(
-        all_seeds, radius, mask_img=binary_gm_filename, smoothing_fwhm=None, detrend=False, low_pass=None,
+        all_seeds, radius, mask_img=binary_gm_filename, smoothing_fwhm=None,
+        detrend=False, low_pass=None,
         high_pass=None, t_r=1, standardize=False, memory=mem, memory_level=1,
         verbose=2)
     region_raw_ts = spheres_masker.fit_transform(func_filename)
@@ -341,6 +342,11 @@ for n, folder in enumerate(folders):
                                      standardize=True,
                                      confounds=[relative_motion, gm_mean,
                                                 wm_mean, csf_mean])
+    region_ts_optimal = nilearn.signal.clean(region_raw_ts, detrend=True,
+                                             low_pass=low_pass,
+                                             high_pass=high_pass, t_r=1.,
+                                             standardize=False,
+                                             confounds=my_confounds)
     region_no_motion_ts = nilearn.signal.clean(region_raw_ts, detrend=True,
                                                low_pass=None,
                                                high_pass=None, t_r=1.,
@@ -365,6 +371,10 @@ for n, folder in enumerate(folders):
         '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
         'no_motion', nip + '_' + session + '_' + prefix),
         region_no_motion_ts)
+    np.save(os.path.join(
+        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
+        'optimal', nip + '_' + session + '_' + prefix),
+        region_ts_optimal)
 
 
 ##########################################################
@@ -375,11 +385,11 @@ all_subjects = []
 for nip, session in zip(nips, sessions):
     all_subjects.append(np.load(os.path.join(
         '/neurospin/servier2/salma/nilearn_outputs', 'low_motion', 'spheres',
-        'tmp', nip + '_' + revert_acquisition(session) + '_' + 'rs1.npy')))
+        'optimal', nip + '_' + revert_acquisition(session) + '_' + 'rs1.npy')))
 for nip, session in zip(nips, sessions):
     all_subjects.append(np.load(os.path.join(
         '/neurospin/servier2/salma/nilearn_outputs', 'high_motion', 'spheres',
-        'tmp', nip + '_' + session + '_' + 'rs1.npy')))
+        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
 
 n_subjects = len(all_subjects)
 
@@ -441,11 +451,11 @@ subjects = []
 for nip, session in zip(nips, sessions):
     subjects.append(np.load(os.path.join(
         '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
-        'tmp', nip + '_' + session + '_' + 'rs1.npy')))
+        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
 for nip, session in zip(nips, sessions):
     subjects.append(np.load(os.path.join(
         '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
-        'tmp', nip + '_' + session + '_' + 'rs1.npy')))
+        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
 
 n_subjects = len(subjects)
 # Compute connectivity coefficients for each subject

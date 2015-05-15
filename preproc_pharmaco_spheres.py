@@ -332,7 +332,7 @@ for n, folder in enumerate(folders):
 #        pca = PCA(n_components=5)
 #        pca.fit(tissue_func.T)
 #        tissue_confounds = pca.components_.T
-        my_confounds = np.hstack((my_confounds, tissue_confounds)
+        my_confounds = np.hstack((my_confounds, tissue_confounds))
 
     # TODO: include mean intensities confounds
     if False:

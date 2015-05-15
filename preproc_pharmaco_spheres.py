@@ -328,7 +328,7 @@ for n, folder in enumerate(folders):
             tissue_mask, target_affine=niimg.get_affine(),
             target_shape=niimg.shape[:3],
             interpolation='nearest')
-        # TODO: raise issue why resampling not handled 
+        # TODO: raise issue why resampling is handled for spheres 
         tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
             func_filename, n_confounds=5, percentile=100.,
             mask_img=mask_img, detrend=False)
@@ -336,7 +336,9 @@ for n, folder in enumerate(folders):
 #        pca = PCA(n_components=5)
 #        pca.fit(tissue_func.T)
 #        tissue_confounds = pca.components_.T
-        my_confounds = np.hstack((my_confounds, tissue_confounds))
+#        my_confounds = np.hstack((my_confounds, tissue_confounds))
+    my_confounds = np.hstack((my_confounds, wm_pca))
+    my_confounds = np.hstack((my_confounds, csf_pca))
 
     print task_ts.shape
     my_confounds = np.hstack((my_confounds, task_ts))

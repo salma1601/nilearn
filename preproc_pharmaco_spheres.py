@@ -320,7 +320,8 @@ for n, folder in enumerate(folders):
 
     # PCA components from WM and CSF
     for tissue_mask in binary_masks:
-        tissue_masker = nilearn.input_data.NiftiMasker(tissue_mask)
+        tissue_masker = nilearn.input_data.NiftiMasker(mask_img=tissue_mask)
+        print os.path.isfile(tissue_mask)
         tissue_func = tissue_masker.fit_transform(func_filename)
         tissue_hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
             tissue_func)

@@ -323,9 +323,15 @@ for n, folder in enumerate(folders):
 
     # PCA components from WM and CSF
     for tissue_mask in binary_masks:
+        niimg = nibabel.load(func_filename)
+        mask_img = mem.cache(nilearn.image.resample_img)(
+            tissue_mask, target_affine=niimg.get_affine(),
+            target_shape=niimg.shape[:3],
+            interpolation='nearest')
+        # TODO: raise issue why resampling not handled 
         tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
             func_filename, n_confounds=5, percentile=100.,
-            mask_img=tissue_mask)
+            mask_img=mask_img, detrend=False)
 #        from sklearn.decomposition import PCA
 #        pca = PCA(n_components=5)
 #        pca.fit(tissue_func.T)

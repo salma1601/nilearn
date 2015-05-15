@@ -232,7 +232,7 @@ else:
 subjects = []
 nips = []
 sessions = []
-n_session = 3
+n_session = 1
 prefix = prefixes[n_session]
 for n, folder in enumerate(folders):
     func_filename = single_glob(os.path.join(folder,
@@ -240,6 +240,8 @@ for n, folder in enumerate(folders):
     motion_filename = single_glob(os.path.join(folder,
                                                'rp_a' + prefix + '*.txt'))
     anat_folder = folder.replace('fMRI', 't1mri')
+
+    # Compute binary GM mask
     gm_filename = single_glob(os.path.join(anat_folder, 'mwc1*.nii'))
     binary_gm_filename = folder.split('/salma/')[1]
     binary_gm_filename = os.path.join('/neurospin/servier2/salma',
@@ -247,6 +249,7 @@ for n, folder in enumerate(folders):
     mask_name = 'bin_' + os.path.basename(gm_filename)
     binary_gm_filename = os.path.join(os.path.dirname(binary_gm_filename),
                                       mask_name)
+    # Some regions do not intersect GM mask for high threshold
     if mask_name in ['bin_mwc1anat_cp110075_20130819_acq11_04.nii',
                      'bin_mwc1anat_mp130349_20130917_acq11_04.nii',
                      'bin_mwc1anat_hs120456_20121126_acq11_04.nii']:
@@ -254,6 +257,20 @@ for n, folder in enumerate(folders):
     else:
         threshold = 0.4
     binarize(gm_filename, binary_gm_filename, threshold=threshold)
+
+    # Compute binary WM and CSF masks
+    binary_masks=[]
+    for pattern in ['mwc2*.nii', 'mwc3*.nii']:
+        mask_filename = single_glob(os.path.join(anat_folder, pattern))
+        binary_mask_filename = folder.split('/salma/')[1]
+        binary_mask_filename = os.path.join('/neurospin/servier2/salma',
+                                            binary_mask_filename)
+        binary_mask_basename = 'bin_' + os.path.basename(mask_filename)
+        binary_mask_filename = os.path.join(
+            os.path.dirname(binary_mask_filename), binary_mask_basename)
+        binarize(mask_filename, binary_mask_filename, threshold=.9)
+        binary_masks.append(binary_mask_filename)
+
     if out_folder == 'low_motion':
 # TODO: generate reg_task*.mat for high moving sessions
         task_filename = single_glob(os.path.join(folder,
@@ -300,7 +317,17 @@ for n, folder in enumerate(folders):
                                       diff_motion_confounds))
     my_confounds = np.hstack((motion_confounds,
                               diff_motion_confounds))
-    my_confounds = np.hstack((my_confounds, hv_confounds))
+
+    # PCA components from WM and CSF
+    for tissue_mask in binary_masks:
+        tissue_masker = input_data.NiftiMasker(tissue_mask)
+        tissue_func = tissue_masker.fit_transform()
+        tissue_hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+            tissue_func)
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=5)
+        pca.fit(tissue_func.T)
+        my_confounds = np.hstack((my_confounds, pca.components_.T))
 
     # TODO: include mean intensities confounds
     if False:

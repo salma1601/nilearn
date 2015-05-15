@@ -338,6 +338,9 @@ for n, folder in enumerate(folders):
 #        tissue_confounds = pca.components_.T
         my_confounds = np.hstack((my_confounds, tissue_confounds))
 
+    print task_ts.shape
+    my_confounds = np.hstack((my_confounds, task_ts))
+    print my_confounds.shape
     # TODO: include mean intensities confounds
     if False:
         # Satterthwaite preprocessings

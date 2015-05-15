@@ -323,12 +323,9 @@ for n, folder in enumerate(folders):
 
     # PCA components from WM and CSF
     for tissue_mask in binary_masks:
-        tissue_masker = nilearn.input_data.NiftiMasker(
-            mask_img=tissue_mask, memory=mem, memory_level=1, verbose=2)
-        tissue_func = tissue_masker.fit_transform(func_filename)
-        # TODO: raise nilearn issue for not able to use memory for this
-        tissue_confounds = nilearn.image.high_variance_confounds(
-            tissue_func, n_confounds=5, percentile=100.)
+        tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+            func_filename, n_confounds=5, percentile=100.,
+            mask_img=tissue_mask)
 #        from sklearn.decomposition import PCA
 #        pca = PCA(n_components=5)
 #        pca.fit(tissue_func.T)

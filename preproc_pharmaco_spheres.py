@@ -152,11 +152,14 @@ def single_glob(pattern):
     return filenames[0]
 
 
-def binarize(in_filename, out_filename, threshold=0.9):
+def binarize(in_filename, out_filename, threshold=None):
     if not os.path.isfile(out_filename):
         img = nibabel.load(in_filename)
         data = img.get_data()
         data[np.isnan(data)] = 0
+        if threshold is None:
+            threshold = np.percentile(data, 90.)
+
         data[data <= threshold] = 0
         data[data > threshold] = 1
         img = nibabel.Nifti1Image(data, img.get_affine(), img.get_header())
@@ -268,7 +271,7 @@ for n, folder in enumerate(folders):
         binary_mask_basename = 'bin_' + os.path.basename(mask_filename)
         binary_mask_filename = os.path.join(
             os.path.dirname(binary_mask_filename), binary_mask_basename)
-        binarize(mask_filename, binary_mask_filename, threshold=.9)
+        binarize(mask_filename, binary_mask_filename)
         binary_masks.append(binary_mask_filename)
 
     if out_folder == 'low_motion':
@@ -322,12 +325,14 @@ for n, folder in enumerate(folders):
     for tissue_mask in binary_masks:
         tissue_masker = nilearn.input_data.NiftiMasker(
             mask_img=tissue_mask, memory=mem, memory_level=1, verbose=2)
-        print os.path.isfile(tissue_mask)
         tissue_func = tissue_masker.fit_transform(func_filename)
-        from sklearn.decomposition import PCA
-        pca = PCA(n_components=5)
-        pca.fit(tissue_func.T)
-        my_confounds = np.hstack((my_confounds, pca.components_.T))
+        tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+            tissue_func, n_confounds=5, percentile=100.)
+#        from sklearn.decomposition import PCA
+#        pca = PCA(n_components=5)
+#        pca.fit(tissue_func.T)
+#        tissue_confounds = pca.components_.T
+        my_confounds = np.hstack((my_confounds, tissue_confounds)
 
     # TODO: include mean intensities confounds
     if False:

@@ -120,7 +120,11 @@ for n, folder in enumerate(folders):
 
     # Compute binary GM mask
     gm_filename = single_glob(os.path.join(anat_folder, 'mwc1*.nii'))
-    binary_gm_filename = folder.split('/salma/')[1]
+    if out_folder == 'low_motion':
+        binary_gm_filename = folder.split('/salma/')[1]
+    else:
+        binary_gm_filename = folder.split('/study/')[1]
+
     binary_gm_filename = os.path.join('/neurospin/servier2/salma',
                                       binary_gm_filename)
     mask_name = 'bin_' + os.path.basename(gm_filename)

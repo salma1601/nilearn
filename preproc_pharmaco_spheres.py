@@ -143,7 +143,10 @@ for n, folder in enumerate(folders):
     binary_masks = []
     for pattern in ['mwc2*.nii', 'mwc3*.nii']:
         mask_filename = single_glob(os.path.join(anat_folder, pattern))
-        binary_mask_filename = folder.split('/salma/')[1]
+        if out_folder == 'low_motion':
+            binary_mask_filename = folder.split('/salma/')[1]
+        else:
+            binary_mask_filename = folder.split('/study/')[1]
         binary_mask_filename = os.path.join('/neurospin/servier2/salma',
                                             binary_mask_filename)
         binary_mask_basename = 'bin_' + os.path.basename(mask_filename)

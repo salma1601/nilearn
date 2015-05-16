@@ -140,22 +140,6 @@ for n, folder in enumerate(folders):
         threshold = 0.4
     binarize(gm_filename, binary_gm_filename, threshold=threshold)
 
-    # Compute binary WM and CSF masks
-    binary_masks = []
-    for pattern in ['mwc2*.nii', 'mwc3*.nii']:
-        mask_filename = single_glob(os.path.join(anat_folder, pattern))
-        if out_folder == 'low_motion':
-            binary_mask_filename = folder.split('/salma/')[1]
-        else:
-            binary_mask_filename = folder.split('/study/')[1]
-        binary_mask_filename = os.path.join('/neurospin/servier2/salma',
-                                            binary_mask_filename)
-        binary_mask_basename = 'bin_' + os.path.basename(mask_filename)
-        binary_mask_filename = os.path.join(
-            os.path.dirname(binary_mask_filename), binary_mask_basename)
-        binarize(mask_filename, binary_mask_filename)
-        binary_masks.append(binary_mask_filename)
-
     if out_folder == 'low_motion':
     # TODO: generate reg_task*.mat for high moving sessions
         task_filename = single_glob(os.path.join(folder,
@@ -185,7 +169,23 @@ for n, folder in enumerate(folders):
     hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
         func_filename, n_confounds=10)
     if out_folder == 'low_motion':
-        # Nilearn computation
+        # Compute binary WM and CSF masks
+        binary_masks = []
+        for pattern in ['mwc2*.nii', 'mwc3*.nii']:
+            mask_filename = single_glob(os.path.join(anat_folder, pattern))
+            if out_folder == 'low_motion':
+                binary_mask_filename = folder.split('/salma/')[1]
+            else:
+                binary_mask_filename = folder.split('/study/')[1]
+            binary_mask_filename = os.path.join('/neurospin/servier2/salma',
+                                                binary_mask_filename)
+            binary_mask_basename = 'bin_' + os.path.basename(mask_filename)
+            binary_mask_filename = os.path.join(
+                os.path.dirname(binary_mask_filename), binary_mask_basename)
+            binarize(mask_filename, binary_mask_filename)
+            binary_masks.append(binary_mask_filename)
+
+        # Nilearn aCompCor confounds
         gm_mean = hv_confounds[:, 0]
         wm_mean = hv_confounds[:, 1]
         csf_mean = hv_confounds[:, 2]
@@ -207,7 +207,7 @@ for n, folder in enumerate(folders):
         wm_pca = nilearn_pca[0]
         csf_pca = nilearn_pca[1]
 
-        # CONN computation
+        # CONN aCompCor computation
         # TODO compute compCor confounds for highly moving subjects
         subject_inpath = os.path.join(
             raw_dir, 'ROI_Subject{0:03d}_Session{1:03d}.mat'.format(

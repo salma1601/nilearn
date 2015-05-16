@@ -3,6 +3,7 @@ import glob
 
 import nibabel
 import numpy as np
+import maplotlib.pylab as plt
 from scipy.io import loadmat
 
 import nilearn.image
@@ -181,33 +182,33 @@ for n, folder in enumerate(folders):
 
     # PCA components from WM and CSF
     ################################
-    # Nilearn computation
     hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
         func_filename, n_confounds=10)
-    gm_mean = hv_confounds[:, 0]
-    wm_mean = hv_confounds[:, 1]
-    csf_mean = hv_confounds[:, 2]
-    nilearn_pca = []
-    for tissue_mask in binary_masks:
-        niimg = nibabel.load(func_filename)
-        mask_img = mem.cache(nilearn.image.resample_img)(
-            tissue_mask, target_affine=niimg.get_affine(),
-            target_shape=niimg.shape[:3],
-            interpolation='nearest')
-        tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
-            func_filename, n_confounds=5, percentile=100.,
-            mask_img=mask_img, detrend=False)
-        nilearn_pca.append(tissue_confounds)
-#        from sklearn.decomposition import PCA
-#        pca = PCA(n_components=5)
-#        pca.fit(tissue_func.T)
-#        tissue_confounds = pca.components_.T
-    wm_pca = nilearn_pca[0]
-    csf_pca = nilearn_pca[1]
-
-    # CONN computation
-    # TODO compute compCor confounds for highly moving subjects
     if out_folder == 'low_motion':
+        # Nilearn computation
+        gm_mean = hv_confounds[:, 0]
+        wm_mean = hv_confounds[:, 1]
+        csf_mean = hv_confounds[:, 2]
+        nilearn_pca = []
+        for tissue_mask in binary_masks:
+            niimg = nibabel.load(func_filename)
+            mask_img = mem.cache(nilearn.image.resample_img)(
+                tissue_mask, target_affine=niimg.get_affine(),
+                target_shape=niimg.shape[:3],
+                interpolation='nearest')
+            tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+                func_filename, n_confounds=5, percentile=100.,
+                mask_img=mask_img, detrend=False)
+            nilearn_pca.append(tissue_confounds)
+           #from sklearn.decomposition import PCA
+           #pca = PCA(n_components=5)
+           #pca.fit(tissue_func.T)
+           #tissue_confounds = pca.components_.T
+        wm_pca = nilearn_pca[0]
+        csf_pca = nilearn_pca[1]
+
+        # CONN computation
+        # TODO compute compCor confounds for highly moving subjects
         subject_inpath = os.path.join(
             raw_dir, 'ROI_Subject{0:03d}_Session{1:03d}.mat'.format(
             n + 1, n_session + 1))
@@ -218,11 +219,16 @@ for n, folder in enumerate(folders):
         wm_mean = wm_pca[:, 0]
         csf_pca = conn_signals[2]
         csf_mean = csf_pca[:, 0]
+    else:
+        wm_pca = hv_confounds[:, :5]
+        csf_pca = hv_confounds[:, 5:]
 
     my_confounds = np.hstack((motion_confounds,
                               diff_motion_confounds))
     my_confounds = np.hstack((my_confounds, wm_pca))
     my_confounds = np.hstack((my_confounds, csf_pca))
+    plt.plot(wm_pca)
+    plt.plot(csf_pca)
 
 #    compcor_confound = [confounds[name] for name in confounds.dtype.names if
 #                         ('compcor' in name)]

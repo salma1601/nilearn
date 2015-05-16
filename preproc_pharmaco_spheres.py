@@ -1,132 +1,13 @@
 import os
 import glob
-import collections
 
 import nibabel
 import numpy as np
-import matplotlib.pylab as plt
 from scipy.io import loadmat
-from scipy.stats import pearsonr
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import nilearn.image
 import nilearn.input_data
 import nilearn.signal
-from nilearn import datasets
-
-
-def cov_to_corr(cov):
-    """Return correlation matrix for a given covariance matrix.
-
-    Parameters
-    ----------
-    cov : 2D numpy.ndarray
-        The input covariance matrix.
-
-    Returns
-    -------
-    corr : 2D numpy.ndarray
-        The ouput correlation matrix.
-    """
-    d = np.atleast_2d(1. / np.sqrt(np.diag(cov)))
-    corr = cov * d * d.T
-    return corr
-
-
-def plot_matrix(matrix, zero_diag=True, figure=None, axes=None,
-                title="connectivity", xlabel="", ylabel="",
-                ticks=[], tick_labels=[]):
-    """Plot connectivity matrix, for a given measure.
-
-    Parameters
-    ==========
-    matrix : 2D numpy.ndarray
-        Matrix to plot
-    zero_diag : bool, optional
-        If True, zero the matrix diagonal.
-    figure : integer or matplotlib figure, optional
-        Matplotlib figure used or its number. If None is given, a
-        new figure is created.
-    axes : matplotlib axes or 4 tuple of float: (xmin, ymin, width, height),
-        optional
-        The axes, or the coordinates, in matplotlib figure space,
-        of the axes used to display the plot. If None, the complete
-        figure is used.
-    title : str, optional
-        Figure title.
-    xlabel : str, optional
-        Figure xlabel.
-    ylabel : str, optional
-        Figure ylabel.
-    ticks : list of float, optional
-        Figure ticks.
-    tick_labels : list of str, optional
-        Figure tick labels.
-    """
-    matrix = matrix.copy()
-    if matrix.ndim != 2:
-        raise ValueError('expect a 2D array')
-
-    # Put zeros on the diagonal, for graph clarity
-    if zero_diag:
-        size = matrix.shape[0]
-        matrix[range(size), range(size)] = 0
-
-    vmax = np.abs(matrix).max()
-    if vmax <= 1e-7:
-        vmax = 0.1
-
-    # Display connectivity matrix
-    if isinstance(axes, plt.Axes) and figure is None:
-        figure = axes.figure
-
-    if not isinstance(figure, plt.Figure):
-        # Make sure that we have a figure
-        figure = plt.figure(figure, figsize=[2.2, 2.6])
-
-    if isinstance(axes, plt.Axes):
-        assert axes.figure is figure, ("The axes passed are not "
-                                       "in the figure")
-
-    if axes is None:
-        axes = [0., 0., 1., 1.]
-
-    if isinstance(axes, collections.Sequence):
-        axes = figure.add_axes(axes)
-
-    im = plt.imshow(matrix, interpolation="nearest",
-                    vmin=-vmax, vmax=vmax, cmap=plt.cm.get_cmap("bwr"))
-
-    plt.xticks(ticks, tick_labels, size=8, rotation=90)
-    plt.xlabel(xlabel)
-    plt.yticks(ticks, tick_labels, size=8)
-    axes.yaxis.tick_left()
-    plt.ylabel(ylabel)
-    plt.title(title)
-
-    # create an axes on the right side of ax. The width of cax will be 5%
-    # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-    divider = make_axes_locatable(axes)
-    cax = divider.append_axes("right", size="5%", pad=0.1)
-    cb = plt.colorbar(im, cax=cax, ticks=[-vmax, 0., vmax], format='%.2g')
-    cb.ax.tick_params(labelsize=8)
-
-
-def _sqr_distance_matrix(array, affine, seed):
-    # You need a lot of faith to believe in this code!
-    seed = np.asarray(seed)
-    # Create an array of shape (3, array.shape) containing the i, j, k indices
-    indices = np.vstack((np.indices(array.shape), np.ones((1,) + array.shape)))
-    # Transform the indices into original space
-    indices = np.tensordot(affine, indices, axes=[[1], [0]])[:3]
-    # Compute square distance to the seed
-    indices = ((indices - seed[:, None, None, None]) ** 2).sum(axis=0)
-    return indices
-
-
-def _create_sphere(array, affine, seed, radius):
-    dist = _sqr_distance_matrix(array, affine, seed)
-    array[dist <= radius ** 2] = 1
 
 
 def _convert_matlab(var_in, var_type):
@@ -177,18 +58,11 @@ def revert_acquisition(name):
         number = '1'
     return name[:-1] + number
 
-atlas = datasets.fetch_msdl_atlas()
-
 
 from sklearn.externals.joblib import Memory
 mem = Memory('/neurospin/servier2/salma/nilearn_cache')
 
-# TODO: mask the atlas with individual GM masks
-masker = nilearn.input_data.NiftiMapsMasker(
-    atlas['maps'], resampling_target="maps", detrend=False,
-    low_pass=None, high_pass=None, t_r=1, standardize=False,
-    memory=mem, memory_level=1, verbose=2)
-
+# Define the coordinates from the litterature/functionals
 from pyhrf.retreat import locator
 all_names = []
 all_seeds = []
@@ -221,12 +95,12 @@ rejected_acqs.remove('/neurospin/servier2/study/AP130327/fMRI/acquisition11')
 
 # Get the path for the CONN project
 conn_dir = os.path.join('/neurospin/servier2/salma/subject1to40',
-    'conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1')
+                        'conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1')
 raw_dir = os.path.join(conn_dir, 'data')
 prefixes = ['rs1', 'nback_2', 'nback_3', 'rs2']
 
 # Define directory to save output signals
-out_folder = 'low_motion'
+out_folder = 'high_motion'
 if out_folder == 'low_motion':
     folders = accepted_acqs
 else:
@@ -235,7 +109,7 @@ else:
 subjects = []
 nips = []
 sessions = []
-n_session = 1
+n_session = 0
 prefix = prefixes[n_session]
 for n, folder in enumerate(folders):
     func_filename = single_glob(os.path.join(folder,
@@ -262,7 +136,7 @@ for n, folder in enumerate(folders):
     binarize(gm_filename, binary_gm_filename, threshold=threshold)
 
     # Compute binary WM and CSF masks
-    binary_masks=[]
+    binary_masks = []
     for pattern in ['mwc2*.nii', 'mwc3*.nii']:
         mask_filename = single_glob(os.path.join(anat_folder, pattern))
         binary_mask_filename = folder.split('/salma/')[1]
@@ -275,16 +149,15 @@ for n, folder in enumerate(folders):
         binary_masks.append(binary_mask_filename)
 
     if out_folder == 'low_motion':
-# TODO: generate reg_task*.mat for high moving sessions
+    # TODO: generate reg_task*.mat for high moving sessions
         task_filename = single_glob(os.path.join(folder,
                                                  'regTask_' + prefix + '*.mat'))
         task_ts = loadmat(task_filename)['reg']
     print("Processing file %s" % func_filename)
 
     print("-- Computing confounds ...")
-    hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
-        func_filename, n_confounds=10)
-
+    # Motion and motion derivatives
+    ###############################
     motion_confounds = np.genfromtxt(motion_filename)
     relative_motion = motion_confounds.copy()
     relative_motion[1:] -= motion_confounds[:-1]
@@ -296,7 +169,36 @@ for n, folder in enumerate(folders):
         confounds_data_dt[1:-1] = conv
         diff_motion_confounds.append(confounds_data_dt)
 
-    # TODO: Add aCompCor confounds
+    all_motion_confounds = np.hstack((motion_confounds,
+                                      diff_motion_confounds))
+
+    # PCA components from WM and CSF
+    ################################
+    # Nilearn computation
+    hv_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+        func_filename, n_confounds=10)
+    gm_mean = hv_confounds[:, 0]
+    wm_mean = hv_confounds[:, 1]
+    csf_mean = hv_confounds[:, 2]
+    nilearn_pca = []
+    for tissue_mask in binary_masks:
+        niimg = nibabel.load(func_filename)
+        mask_img = mem.cache(nilearn.image.resample_img)(
+            tissue_mask, target_affine=niimg.get_affine(),
+            target_shape=niimg.shape[:3],
+            interpolation='nearest')
+        tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
+            func_filename, n_confounds=5, percentile=100.,
+            mask_img=mask_img, detrend=False)
+        nilearn_pca.append(tissue_confounds)
+#        from sklearn.decomposition import PCA
+#        pca = PCA(n_components=5)
+#        pca.fit(tissue_func.T)
+#        tissue_confounds = pca.components_.T
+    wm_pca = nilearn_pca[0]
+    csf_pca = nilearn_pca[1]
+
+    # CONN computation
     # TODO compute compCor confounds for highly moving subjects
     if out_folder == 'low_motion':
         subject_inpath = os.path.join(
@@ -310,63 +212,21 @@ for n, folder in enumerate(folders):
         csf_pca = conn_signals[2]
         csf_mean = csf_pca[:, 0]
 
-    gm_mean = hv_confounds[:, 0]
-    wm_mean = hv_confounds[:, 1]
-    csf_mean = hv_confounds[:, 2]
-
-#    compcor_confound = [confounds[name] for name in confounds.dtype.names if
-#                         ('compcor' in name)]
-    all_motion_confounds = np.hstack((motion_confounds,
-                                      diff_motion_confounds))
     my_confounds = np.hstack((motion_confounds,
                               diff_motion_confounds))
-
-    # PCA components from WM and CSF
-    for tissue_mask in binary_masks:
-        niimg = nibabel.load(func_filename)
-        mask_img = mem.cache(nilearn.image.resample_img)(
-            tissue_mask, target_affine=niimg.get_affine(),
-            target_shape=niimg.shape[:3],
-            interpolation='nearest')
-        # TODO: raise issue why resampling is handled for spheres 
-        tissue_confounds = mem.cache(nilearn.image.high_variance_confounds)(
-            func_filename, n_confounds=5, percentile=100.,
-            mask_img=mask_img, detrend=False)
-#        from sklearn.decomposition import PCA
-#        pca = PCA(n_components=5)
-#        pca.fit(tissue_func.T)
-#        tissue_confounds = pca.components_.T
-#        my_confounds = np.hstack((my_confounds, tissue_confounds))
     my_confounds = np.hstack((my_confounds, wm_pca))
     my_confounds = np.hstack((my_confounds, csf_pca))
 
-    print task_ts.shape
-    my_confounds = np.hstack((my_confounds, task_ts))
-    print my_confounds.shape
-    # TODO: include mean intensities confounds
-    if False:
-        # Satterthwaite preprocessings
-        anat_folder = folder.replace('fMRI', 't1mri')
-        wm_filename = single_glob(os.path.join(anat_folder, 'mwc2*.nii'))
-        csf_filename = single_glob(os.path.join(anat_folder, 'mwc3*.nii'))
-        wm_masker = nilearn.input_data.NiftiMapsMasker(
-            wm_filename, memory=mem, memory_level=1, verbose=2)
-        csf_masker = nilearn.input_data.NiftiMapsMasker(
-            csf_filename, memory=mem, memory_level=1, verbose=2)
-        wm_mean = wm_masker.fit_transform(func_filename)
-        csf_mean = csf_masker.fit_transform(func_filename)
-        import nibabel
-        global_data = nibabel.load(func_filename).get_data()
-        global_mean = np.zeros(global_data.shape[-1])
-        for t in range(global_data.shape[-1]):
-            global_mean[t] = global_data[global_data[..., t] > 0, t].mean()
-        satter_masker = nilearn.input_data.NiftiMapsMasker(
-            atlas['maps'], resampling_target="maps", detrend=True,
-            low_pass=.1, high_pass=.01, t_r=1, standardize=False,
-            memory=mem, memory_level=1, verbose=2)
-        satter_confounds = np.hstack((motion_confounds, csf_mean, wm_mean,
-                                      global_mean))
+#    compcor_confound = [confounds[name] for name in confounds.dtype.names if
+#                         ('compcor' in name)]
 
+    # Task confound
+    ###############
+    # TODO compute task regressors for highly moving subjects
+    if out_folder == 'low_motion':
+        my_confounds = np.hstack((my_confounds, task_ts))
+
+    print(' regressing out {} confounds'.format(my_confounds.shape[-1]))
     low_pass = .08
     high_pass = .009
 
@@ -416,163 +276,3 @@ for n, folder in enumerate(folders):
         '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
         'optimal', nip + '_' + session + '_' + prefix),
         region_ts_optimal)
-
-
-##########################################################
-# Means w.r.t. distances/connectivity
-##########################################################
-# Load the signals for the resting state sessions
-all_subjects = []
-for nip, session in zip(nips, sessions):
-    all_subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', 'low_motion', 'spheres',
-        'optimal', nip + '_' + revert_acquisition(session) + '_' + 'rs1.npy')))
-for nip, session in zip(nips, sessions):
-    all_subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', 'high_motion', 'spheres',
-        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
-
-n_subjects = len(all_subjects)
-
-# Compute connectivity coefficients for each subject
-print("-- Measuring connecivity ...")
-measures = ['covariance', 'precision', 'tangent', 'correlation',
-            'partial correlation']
-
-from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
-estimators = [('ledoit', LedoitWolf()), ('emp', EmpiricalCovariance()),
-              ('mcd', MinCovDet())]
-n_estimator = 1
-all_matrices = []
-mean_matrices = []
-from nilearn import connectivity
-for subjects in [all_subjects[:n_subjects / 2],
-                 all_subjects[n_subjects / 2:]]:
-    for measure in measures:
-        estimator = {'cov_estimator': estimators[n_estimator][1],
-                     'kind': measure}
-        cov_embedding = connectivity.CovEmbedding(**estimator)
-        matrices = connectivity.vec_to_sym(
-            cov_embedding.fit_transform(subjects))
-        all_matrices.append(matrices)
-        if measure == 'tangent':
-            mean = cov_embedding.mean_cov_
-        else:
-            mean = matrices.mean(axis=0)
-        mean_matrices.append(mean)
-coords = all_seeds
-coords = np.array([list(coord) for coord in coords])
-distance_matrix = coords - coords[:, np.newaxis]
-dist = np.linalg.norm(distance_matrix, axis=-1)
-plt.subplot(411)
-plt.scatter((mean_matrices[3][dist < 96]).flatten(),
-            (dist[dist < 96]).flatten(), c='r')
-plt.scatter((cov_to_corr(mean_matrices[2])[dist < 96]).flatten(),
-            (dist[dist < 96]).flatten(), c='g')
-plt.subplot(412)
-plt.scatter((mean_matrices[3][dist > 96]).flatten(),
-            (dist[dist > 96]).flatten(), c='r')
-plt.scatter((cov_to_corr(mean_matrices[2])[dist > 96]).flatten(),
-            (dist[dist > 96]).flatten(), c='g')
-plt.subplot(413)
-plt.scatter((mean_matrices[3]).flatten(),
-            (mean_matrices[8]).flatten(), c='r')
-plt.scatter((cov_to_corr(mean_matrices[2])).flatten(),
-            (cov_to_corr(mean_matrices[7])).flatten(), c='g')
-plt.plot(np.linspace(-1, 1, 100), np.linspace(-1, 1, 100))
-plt.xlabel('conn')
-plt.ylabel('dist')
-plt.show()
-
-
-# Correlation between motion and connectivity, relationship with distance
-#########################################################################
-# Load the signals for the resting state sessions
-subjects = []
-for nip, session in zip(nips, sessions):
-    subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
-        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
-for nip, session in zip(nips, sessions):
-    subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
-        'optimal', nip + '_' + session + '_' + 'rs1.npy')))
-
-n_subjects = len(subjects)
-# Compute connectivity coefficients for each subject
-print("-- Measuring connecivity ...")
-measures = ['covariance', 'precision', 'tangent', 'correlation',
-            'partial correlation']
-
-from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
-estimators = [('ledoit', LedoitWolf()), ('emp', EmpiricalCovariance()),
-              ('mcd', MinCovDet())]
-n_estimator = 1
-all_matrices = []
-mean_matrices = []
-from nilearn import connectivity
-for measure in measures:
-    estimator = {'cov_estimator': estimators[n_estimator][1],
-                 'kind': measure}
-    cov_embedding = connectivity.CovEmbedding(**estimator)
-    matrices = connectivity.vec_to_sym(
-        cov_embedding.fit_transform(subjects))
-    all_matrices.append(matrices)
-    if measure == 'tangent':
-        mean = cov_embedding.mean_cov_
-    else:
-        mean = matrices.mean(axis=0)
-    mean_matrices.append(mean)
-
-# Compute mean motion for each subject
-mean_motion = []
-for prefix in ['rs1', 'rs1']:
-    for folder in folders:
-        motion_filename = single_glob(os.path.join(folder,
-                                                   'rp_a' + prefix + '*.txt'))
-        motion_confounds = np.genfromtxt(motion_filename)[:, :3]
-        relative_motion = motion_confounds.copy()
-        relative_motion[1:] -= motion_confounds[:-1]
-        mean_motion.append(np.linalg.norm(relative_motion, axis=1).mean())
-
-# Compute Euclidean distances between nodes in mm
-coords = all_seeds
-coords = np.array([list(coord) for coord in coords])
-distance_matrix = coords - coords[:, np.newaxis]
-distance_matrix = np.linalg.norm(distance_matrix, axis=-1)
-
-# Compute pearson correlation between motion and connectivity
-correlation = np.zeros(distance_matrix.shape)
-all_indices = np.triu_indices(distance_matrix.shape[0], 1)
-x_indices = []
-y_indices = []
-for indices in zip(*all_indices):
-    conn = []
-    for n in range(n_subjects):
-        conn.append(all_matrices[3][n][indices])
-    if np.mean(conn) > -1:
-        correlation[indices] = pearsonr(mean_motion, conn)[0]
-        x_indices.append(indices[0])
-        y_indices.append(indices[1])
-
-new_indices = (x_indices, y_indices)
-
-# Scatter plot
-dist = distance_matrix[new_indices]
-corr = correlation[new_indices]
-plt.scatter(dist, corr)
-plt.xlabel('euclidean distance (mm)')
-plt.ylabel('correlation of motion and connectivity')
-r, p = pearsonr(dist, corr)
-print('Pearson correlation is {0} with pval {1}'.format(r, p))
-t = np.polyfit(dist, corr, 1, full=True)
-xp = np.linspace(dist.min(), dist.max(), 100)
-p1 = np.poly1d(np.polyfit(dist, corr, 1))
-plt.plot(xp, p1(xp))
-print('corr = {0} (dist - {1})'.format(t[0][1], - t[0][0] / t[0][1]))
-plt.show()
-
-plot_matrix(all_matrices[3][40:].mean(axis=0) -
-            all_matrices[3][:40].mean(axis=0))
-plt.show()
-

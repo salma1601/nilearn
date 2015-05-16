@@ -227,8 +227,10 @@ for n, folder in enumerate(folders):
                               diff_motion_confounds))
     my_confounds = np.hstack((my_confounds, wm_pca))
     my_confounds = np.hstack((my_confounds, csf_pca))
-    plt.plot(wm_pca)
-    plt.plot(csf_pca)
+    if not n % 3:
+        plt.plot(wm_pca)
+        plt.plot(csf_pca)
+        plt.show()
 
 #    compcor_confound = [confounds[name] for name in confounds.dtype.names if
 #                         ('compcor' in name)]

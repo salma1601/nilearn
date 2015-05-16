@@ -3,7 +3,7 @@ import glob
 
 import nibabel
 import numpy as np
-import maplotlib.pylab as plt
+import matplotlib.pylab as plt
 from scipy.io import loadmat
 
 import nilearn.image

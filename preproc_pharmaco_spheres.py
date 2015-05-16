@@ -220,6 +220,9 @@ for n, folder in enumerate(folders):
         csf_pca = conn_signals[2]
         csf_mean = csf_pca[:, 0]
     else:
+        gm_mean = hv_confounds[:, 0]
+        wm_mean = hv_confounds[:, 1]
+        csf_mean = hv_confounds[:, 2]
         wm_pca = hv_confounds[:, :5]
         csf_pca = hv_confounds[:, 5:]
 

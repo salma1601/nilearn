@@ -14,8 +14,9 @@ from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
 from nilearn import connectivity
 from funtk.connectivity import matrix_stats
 from nilearn.connectivity.embedding import prec_to_partial
-from nilearn.connectivity.collecting import single_glob, group_left_right
-from nilearn.connectivity import compute_connectivity
+from nilearn.connectivity.collecting import (single_glob, group_left_right,
+                                             crescendo_replacement)
+from nilearn.connectivity.analyzing import compute_connectivity
 
 
 def revert_acquisition(name):
@@ -256,9 +257,10 @@ for prefix in ['rs1', 'rs2']:
                [np.load(path) for path in high_moving]
 
     # Compute mean motion for each subject
-    names = ['low', 'high']
-#    outliers = []
-    for name, paths in zip(names, [low_moving, high_moving]):
+    all_low_paths = [path for path in accepted_acqs]
+    replacement_tuples = []
+    for low_path, high_path in zip(low_moving, high_moving):
+        paths = [low_path, high_path]
         mean_translations = []
         mean_rotations = []
         for path in paths:
@@ -280,45 +282,22 @@ for prefix in ['rs1', 'rs2']:
             mean_rotation = np.linalg.norm(
                 relative_rotation, axis=1).mean()
             mean_rotations.append(mean_rotation)
+        # Consider as noisy subjects only those that have increased mean
+        # translation in the backup session
+        print mean_translations    
+        if mean_translations[1] - mean_translations[0] > 0.01:
+            replacement_tuples.append((low_path, high_path))
+        elif mean_translations[0] - mean_translations[1] > 0.01:
+            all_low_paths = crescendo_replacement(all_low_paths,
+                                                  [(low_path, high_path)])[0]
+            replacement_tuples.append((high_path, low_path))
 
-        if name == 'high':
-            high_translation = np.array(mean_translations)
-            high_rotation = np.array(mean_rotations)
-#            high_paths.append(path)
-        else:
-            low_translation = np.array(mean_translations)
-            low_rotation = np.array(mean_rotations)
-#            low_paths.append(path)
-
-    # TODO: do it in another way, to have the same subjects for the 2 runs 
-    all_low_paths = [path for path in accepted_acqs]
-    n_noisy = 0
-    
-    if path in low_moving:
-        if high_translation[n_noisy] - low_translation[n_noisy] > 0.:
-            noisy_paths.append(high_moving[n_noisy])
-        else:
-            noisy_paths.append(path)
-
-    replacement_tuples = zip(low_paths, high_paths)
-    cresendo_noisy_paths = cresendo_replacement(all_low_paths,)
-    noisy_paths = []
-    
-    cresendo_noisy_paths = []
-    for path in all_low_paths:
-        if path in low_moving:
-            if high_translation[n_noisy] - low_translation[n_noisy] > 0.:
-                noisy_paths.append(high_moving[n_noisy])
-            else:
-                noisy_paths.append(path)
-            n_noisy += 1
-        else:
-            noisy_paths.append(path)
-        complete_noisy_paths = noisy_paths + all_low_paths[n_noisy:]
-        cresendo_noisy_paths.append(complete_noisy_paths)
-
+    cresendo_noisy_paths = crescendo_replacement(all_low_paths,
+                                                 replacement_tuples)
+    cresendo_noisy_paths = [all_low_paths] + cresendo_noisy_paths
 # TODO: compare the connectivity with outliers: the norm, and the significant
 # connections (hope is adds a small distance connection/ remove high distance)
+    subjects = [np.load(path) for path in all_low_paths]
     _, mean_matrices = compute_connectivity(subjects)
     noisy_means = []
     for noisy_paths in cresendo_noisy_paths:
@@ -336,7 +315,6 @@ for prefix in ['rs1', 'rs2']:
 
     def distance(x, y):
         return np.linalg.norm(x - y)
-
 
     for mean_matrices2 in noisy_means:
         # Compute the difference between contaminated and non contaminated data
@@ -360,6 +338,7 @@ for prefix in ['rs1', 'rs2']:
         robust_part_err.append(distance(robust_part, prec_to_partial(
             np.linalg.inv(mean_matrices2[2]))) / np.linalg.norm(robust_part))
 
+    n_noisy = len(noisy_means)
     plt.figure()
     colors = ['r', 'b', 'g', 'k']
     ls = ['-', '--']

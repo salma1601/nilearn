@@ -14,9 +14,9 @@ from sklearn.covariance import EmpiricalCovariance, LedoitWolf, MinCovDet
 from nilearn import connectivity
 from funtk.connectivity import matrix_stats
 from nilearn.connectivity.embedding import prec_to_partial
-from nilearn.connectivity.collecting import (single_glob, group_left_right,
+from nilearn.connectivity2.collecting import (single_glob, group_left_right,
                                              crescendo_replacement)
-from nilearn.connectivity.analyzing import compute_connectivity
+from nilearn.connectivity2.analyzing import compute_connectivity
 
 
 def revert_acquisition(name):

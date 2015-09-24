@@ -1,14 +1,20 @@
-import sys
-
 import numpy as np
 import matplotlib.pylab as plt
 
 import dataset_loader
-code_path = np.genfromtxt('/home/sb238920/CODE/anonymisation/code_path.txt',
-                          dtype=str)
-sys.path.append(str(code_path))
-from my_conn import MyConn
 
+# Specify the networks
+WMN = ['IPL', 'LMFG_peak1',
+       'RCPL_peak1', 'LCPL_peak3', 'LT']
+AN = ['vIPS.cluster001', 'vIPS.cluster002',
+      'pIPS.cluster001', 'pIPS.cluster002',
+      'MT.cluster001', 'MT.cluster002',
+      'FEF.cluster001', 'FEF.cluster002',
+      'RTPJ', 'RDLPFC']
+DMN = ['AG.cluster001', 'AG.cluster002',
+       'SFG.cluster001', 'SFG.cluster002',
+       'PCC', 'MPFC', 'FP']
+networks = [('WMN', WMN), ('AN', AN), ('DMN', DMN)]
 
 # Specify the location of the  CONN project
 conn_folders = np.genfromtxt(
@@ -16,31 +22,22 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
+conditions = ['ReSt1_Placebo', 'ReSt2_Placebo']
+dataset = dataset_loader.load_conn(conn_folder_filt, conditions=conditions,
+                                   standardize=False,
+                                   networks=networks)
 
-dataset = dataset_loader.load_conn(
-    conn_folder_filt, conditions=['Nbac2_Placebo', 'ReSt2_Placebo'],
-    standardize=False)
 
-
- # Specify the ROIs and their networks. Here: biyu's order
-WMN = ['IPL', 'LMFG_peak1',  # 'RMFG_peak2' removed because of bad results
-       'RCPL_peak1', 'LCPL_peak3', 'LT']
-AN = ['vIPS_big', 'pIPS_big', 'MT_big', 'FEF_big', 'RTPJ', 'RDLPFC']
-DMN = ['AG_big', 'SFG_big', 'PCC', 'MPFC', 'FP']
-template_ntwk = [('WMN', WMN), ('AN', AN), ('DMN', DMN)]
-
-n_subjects = 40
+# Estimate connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
+import nilearn.connectivity
+n_subjects = 40
 mean_matrices = []
 all_matrices = []
 measures = ["tangent", "correlation", "partial correlation", "covariance",
             "precision"]
-
-subjects = [subj for subj in dataset.time_series['Nbac2_Placebo']] + \
-           [subj for subj in dataset.time_series['ReSt2_Placebo']]
-
-# Estimate connectivity matrices
-import nilearn.connectivity
+subjects = [subj for condition in conditions for subj in
+            dataset.time_series[condition]]
 subjects_connectivity = {}
 mean_connectivity = {}
 for measure in measures:
@@ -60,7 +57,7 @@ import nilearn.plotting
 labels, region_coords = zip(*dataset.rois)
 for measure in ['tangent', 'correlation', 'partial correlation']:
     nilearn.plotting.plot_connectome(mean_connectivity[measure], region_coords,
-                                     edge_threshold='98%',
+                                     edge_threshold='95%',
                                      title='mean %s' % measure)
 
 wmn = range(4)
@@ -112,5 +109,5 @@ for color, measure in zip('rgbyk', measures):
 plt.ylabel('Classification accuracy')
 plt.legend(measures, loc='upper left')
 plt.ylim([0., 1.2])
-plt.title(condition_follow_up + ' vs ' + condition_baseline)
+plt.title(conditions[0] + ' vs ' + conditions[1])
 plt.show()

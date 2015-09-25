@@ -14,7 +14,7 @@ from my_conn import MyConn
 def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
               networks=None):
     """Return preprocessed times series, motion parameters and regions labels
-    and coordinates for specified conditions and conn project.
+    and coordinates from a specified conn project.
 
     Parameters
     ----------
@@ -89,6 +89,88 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
         n_subjects = len(time_series[condition])
         motion[condition] = [covariates[n][0][condition_id][2] for n in
                              range(n_subjects)]
+
+    rois = zip(rois_labels, rois_coords)
+    return Bunch(time_series=time_series, motion=motion, rois=rois)
+
+
+def load_nilearn(timeseries_folder, motion_folder, files_pattern,
+                 conditions=['rs1'], standardize=False,
+                 networks=None):
+    """Return preprocessed times series, motion parameters and regions labels
+    and coordinates from nilearn_data.
+
+    Parameters
+    ----------
+    timeseries_folder : str
+        Path to existant folder with extracted timeseries for each subject.
+
+    motion_folder : str
+        Path to existant folder with motion parameters for each subject.
+
+    files_pattern : list of tuples (str, str)
+        Patterns for subjects files, consisting of subjects nips and
+        acquisition numbers.
+
+    conditions : list of str, optional
+        List of conditions to load, default to 'rs1'.
+
+    standardize : bool, optional
+        If True, regions timeseries are standardized (default to False).
+
+    networks : list of tuples or None, optional
+        Each tuple is a pair (str, list of str) giving network name and the
+        associated ROIs names. Default to WMN, AN and DMN regions in biyu's
+        order.  # TODO add reference
+
+    Returns
+    -------
+    output : sklearn.datasets.base.Bunch
+        Dictionary like object, the interest attributes are :
+         - 'time_series': dict, keys are conditions, values are lists of
+         numpy.ndarray giving the signals within the specified ROIs for each
+         subject
+         - 'motion': dict, keys are conditions, values are lists of
+         numpy.ndarray giving the motion parameters for each subject
+         - 'rois': list of pairs giving the labels and coordinates of each ROI
+    """
+    time_series = {}
+    motion = {}
+    for condition in conditions:
+        subjects_paths = [os.path.join(timeseries_folder,
+        subject_id + '_' + acquisition_id + '_' + condition + '.npy') for
+        (subject_id, acquisition_id) in files_pattern]
+        subjects = [np.load(path) for path in subjects_paths]
+        if standardize:
+            subjects = [signal / signal.std(axis=1) for signal in subjects]
+
+        time_series[condition] = subjects
+        motion_paths = [os.path.join(motion_folder, 'rp_a' + condition + '_' +
+                        subject_id + '*acq' + acquisition_id + '*.txt') for
+                        (subject_id, acquisition_id) in files_pattern]
+        motion[condition] = [np.genfromtxt(path) for path in motion_paths]
+
+    # Specify the ROIs
+    from pyhrf.retreat import locator
+    get_networks = [locator.meta_motor, locator.meta_non_cortical,
+                    locator.func_working_memory, locator.meta_visual,
+                    locator.meta_attention, locator.meta_default_mode,
+                    locator.meta_saliency]
+    nilearn_rois_labels = []
+    nilearn_rois_coords = []
+    for get_network in get_networks:
+        network_rois_labels, network_rois_coords = get_network()
+        nilearn_rois_labels += network_rois_labels
+        nilearn_rois_coords += network_rois_coords
+
+    if networks is not None:
+        rois_labels = [roi_label for network in networks for roi_label in
+                       network[1] if roi_label in nilearn_rois_labels]
+        rois_coords = [coord for (label, coord) in zip(nilearn_rois_labels,
+                       nilearn_rois_coords) if label in nilearn_rois_labels]
+    if len(rois_labels) != len(rois_coords):
+        print nilearn_rois_labels
+        raise ValueError('Mismatch between ROIs labels and coordinates')
 
     rois = zip(rois_labels, rois_coords)
     return Bunch(time_series=time_series, motion=motion, rois=rois)

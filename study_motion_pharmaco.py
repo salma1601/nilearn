@@ -219,7 +219,7 @@ for prefix1, prefix2 in prefixes_couples:
                    LogisticRegression(), GaussianNB(), RidgeClassifier()]
     classifier_names = ['SVM', 'KNN', 'logistic', 'GNB', 'ridge']
     classes = np.hstack((np.zeros(n_subjects), np.ones(n_subjects)))
-    cv = StratifiedShuffleSplit(classes, n_iter=1000, test_size=0.33)
+    cv = StratifiedShuffleSplit(classes, n_iter=100, test_size=0.33)
     scores = {}
     for measure in measures:
         scores[measure] = {}
@@ -256,7 +256,6 @@ for prefix1, prefix2 in prefixes_couples:
     plt.title(prefix2 + ' vs ' + prefix1)
     plt.show()
 
-stop
 
 # Classify conditions
 from sklearn.svm import LinearSVC
@@ -302,7 +301,6 @@ plt.legend(measures, fontsize='17')
 plt.show()
 
 ###################################################################
-stop
 
 ########################################################
 # Compare high motion to low motion
@@ -337,7 +335,8 @@ for prefix in ['rs1', 'rs2']:
         mean_rotations = []
         for path in paths:
             filename = os.path.basename(path)
-    # TODO: use regexp and form paths once for all
+            # TODO: use regexp and form paths once for all 
+            #eg: int(re.search(r'\d+', string1).group())
             nip = filename[:8].lower()
             n_acq = filename[20:22]
             motion_filename = single_glob(os.path.join(

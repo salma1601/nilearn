@@ -4,6 +4,7 @@ import os
 import numpy as np
 
 from sklearn.datasets.base import Bunch
+from nilearn.connectivity2.collecting import single_glob
 
 code_path = np.genfromtxt('/home/sb238920/CODE/anonymisation/code_path.txt',
                           dtype=str)
@@ -94,8 +95,8 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
     return Bunch(time_series=time_series, motion=motion, rois=rois)
 
 
-def load_nilearn(timeseries_folder, motion_folder, files_pattern,
-                 conditions=['rs1'], standardize=False,
+def load_nilearn(timeseries_folder, motion_folder, timeseries_pattern,
+                 motion_pattern, conditions=['rs1'], standardize=False,
                  networks=None):
     """Return preprocessed times series, motion parameters and regions labels
     and coordinates from nilearn_data.
@@ -108,8 +109,12 @@ def load_nilearn(timeseries_folder, motion_folder, files_pattern,
     motion_folder : str
         Path to existant folder with motion parameters for each subject.
 
-    files_pattern : list of tuples (str, str)
-        Patterns for subjects files, consisting of subjects nips and
+    timeseries_pattern : list of tuples (str, str)
+        Patterns for timeseries files, consisting of subjects nips and
+        acquisition numbers.
+
+    motion_pattern : list of tuples (str, str)
+        Patterns for motion files, consisting of subjects nips and
         acquisition numbers.
 
     conditions : list of str, optional
@@ -120,7 +125,8 @@ def load_nilearn(timeseries_folder, motion_folder, files_pattern,
 
     networks : list of tuples or None, optional
         Each tuple is a pair (str, list of str) giving network name and the
-        associated ROIs names. Default to WMN, AN and DMN regions in biyu's
+        associated ROIs names. Default to motor, cortical, WMN, visual,
+        attention, DMN and silency regions in biyu's
         order.  # TODO add reference
 
     Returns
@@ -134,22 +140,6 @@ def load_nilearn(timeseries_folder, motion_folder, files_pattern,
          numpy.ndarray giving the motion parameters for each subject
          - 'rois': list of pairs giving the labels and coordinates of each ROI
     """
-    time_series = {}
-    motion = {}
-    for condition in conditions:
-        subjects_paths = [os.path.join(timeseries_folder,
-        subject_id + '_' + acquisition_id + '_' + condition + '.npy') for
-        (subject_id, acquisition_id) in files_pattern]
-        subjects = [np.load(path) for path in subjects_paths]
-        if standardize:
-            subjects = [signal / signal.std(axis=1) for signal in subjects]
-
-        time_series[condition] = subjects
-        motion_paths = [os.path.join(motion_folder, 'rp_a' + condition + '_' +
-                        subject_id + '*acq' + acquisition_id + '*.txt') for
-                        (subject_id, acquisition_id) in files_pattern]
-        motion[condition] = [np.genfromtxt(path) for path in motion_paths]
-
     # Specify the ROIs
     from pyhrf.retreat import locator
     get_networks = [locator.meta_motor, locator.meta_non_cortical,
@@ -163,14 +153,40 @@ def load_nilearn(timeseries_folder, motion_folder, files_pattern,
         nilearn_rois_labels += network_rois_labels
         nilearn_rois_coords += network_rois_coords
 
-    if networks is not None:
+    if networks is None:
+        rois_labels = nilearn_rois_labels
+        rois_coords = nilearn_rois_coords
+    else:
         rois_labels = [roi_label for network in networks for roi_label in
                        network[1] if roi_label in nilearn_rois_labels]
         rois_coords = [coord for (label, coord) in zip(nilearn_rois_labels,
-                       nilearn_rois_coords) if label in nilearn_rois_labels]
+                       nilearn_rois_coords) if label in rois_labels]
+        rois_indices = [n for n in range(len(nilearn_rois_labels)) if
+                        nilearn_rois_labels[n] in rois_labels]
     if len(rois_labels) != len(rois_coords):
         print nilearn_rois_labels
         raise ValueError('Mismatch between ROIs labels and coordinates')
 
     rois = zip(rois_labels, rois_coords)
+
+    # Collect time series and motion parameters
+    time_series = {}
+    motion = {}
+    for condition in conditions:
+        subjects_paths = [os.path.join(timeseries_folder, subject_id + '_' +
+                          acquisition_id + '_' + condition + '.npy') for
+                          (subject_id, acquisition_id) in timeseries_pattern]
+        subjects = [np.load(path) for path in subjects_paths]
+        if standardize:
+            subjects = [signal / signal.std(axis=1) for signal in subjects]
+        if networks is not None:
+            subjects = [signal[:, rois_indices] for signal in subjects]
+        time_series[condition] = subjects
+        motion_paths = [os.path.join(motion_folder, 'rp_a' + condition + '_' +
+                        subject_id + '*acq' + acquisition_id + '*.txt') for
+                        (subject_id, acquisition_id) in motion_pattern]
+        motion[condition] = [np.genfromtxt(single_glob(path)) for path in
+                             motion_paths]
+
+
     return Bunch(time_series=time_series, motion=motion, rois=rois)

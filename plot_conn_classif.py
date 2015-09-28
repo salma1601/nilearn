@@ -22,7 +22,7 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-conditions = ['ReSt1_Placebo', 'ReSt2_Placebo']
+conditions = ['ReSt1_Placebo', 'Nbac2_Placebo']
 dataset = dataset_loader.load_conn(conn_folder_filt, conditions=conditions,
                                    standardize=False,
                                    networks=networks)
@@ -42,12 +42,12 @@ subjects_connectivity = {}
 mean_connectivity = {}
 for measure in measures:
     cov_embedding = nilearn.connectivity.CovEmbedding(
-        measure=measure, cov_estimator=EmpiricalCovariance())
+        kind=measure, cov_estimator=EmpiricalCovariance())
     subjects_connectivity[measure] = nilearn.connectivity.vec_to_sym(
         cov_embedding.fit_transform(subjects))
     # Compute the mean connectivity across all subjects
     if measure == 'tangent':
-        mean_connectivity[measure] = cov_embedding.tangent_mean_
+        mean_connectivity[measure] = cov_embedding.mean_cov_
     else:
         mean_connectivity[measure] = \
             subjects_connectivity[measure].mean(axis=0)

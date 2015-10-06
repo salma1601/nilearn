@@ -86,7 +86,12 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
             condition_id = np.where(conn_conditions == condition)[0][0]
         except IndexError:
             raise ValueError('no condition named {}'.format(condition))
-        time_series[condition] = mc.runs_[condition]
+
+        subjects = mc.runs_[condition]
+        if standardize:
+            subjects = [signal / signal.std(axis=1)[:, np.newaxis] for signal in subjects]
+
+        time_series[condition] = subjects
         n_subjects = len(time_series[condition])
         motion[condition] = [covariates[n][0][condition_id][2] for n in
                              range(n_subjects)]
@@ -179,6 +184,7 @@ def load_nilearn(timeseries_folder, motion_folder, timeseries_pattern,
         subjects = [np.load(path) for path in subjects_paths]
         if standardize:
             subjects = [signal / signal.std(axis=1) for signal in subjects]
+
         if networks is not None:
             subjects = [signal[:, rois_indices] for signal in subjects]
         time_series[condition] = subjects

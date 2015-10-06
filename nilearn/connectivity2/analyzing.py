@@ -63,3 +63,26 @@ def compute_spreading(matrices):
         indices.remove(matrix_n)
         variances.append(_compute_variance(matrix, matrices[indices, ...]))
     return variances
+
+
+def split_sample(sample, metric='norm 2'):
+    """Separating the higher half of a sample array from the lower half with
+    respect to a given metric.
+
+    Parameters
+    ----------
+    sample : numpy.ndarray, shape (n_observations, n_features)
+        The sample to split
+
+    metric : one of {'norm2', 'norm 1'}
+
+    Returns
+    -------
+    halfs : tuple of 1D numpy.ndarray
+        The splietted sample (lower half, higher half)
+    """
+    if metric == 'norm 2':
+        values = np.linalg.norm(sample, axis=-1)
+        median = np.median(values)
+        halfs = (np.where(values <= median)[0], np.where(values > median)[0])
+    return halfs

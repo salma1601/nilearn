@@ -1,8 +1,9 @@
 import numpy as np
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 
 from nilearn.connectivity2.analyzing import (_compute_variance,
-                                             compute_spreading)
+                                             compute_spreading,
+                                             split_sample)
 
 
 def test_compute_variance():
@@ -21,3 +22,9 @@ def test_compute_spreading():
     matrices = np.dstack((matrix1, matrix2, matrix3)).T
     assert_array_almost_equal([12.5, 10.5, 7],
                               compute_spreading(matrices))
+
+
+def test_split_sample():
+    lower_half, higher_half = split_sample(np.arange(10)[:, np.newaxis])
+    assert_array_equal(lower_half, np.arange(5))
+    assert_array_equal(higher_half, np.arange(5, 10))

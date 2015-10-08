@@ -1,7 +1,7 @@
 import numpy as np
 
 from sklearn.covariance import LedoitWolf
-from nilearn.connectivity import CovEmbedding, vec_to_sym
+from nilearn.connectivity import ConnectivityMeasure
 
 
 def compute_connectivity(subjects, measures=['covariance', 'precision',
@@ -13,9 +13,9 @@ def compute_connectivity(subjects, measures=['covariance', 'precision',
     all_matrices = {}
     mean_matrices = {}
     for measure in measures:
-        cov_embedding = CovEmbedding(cov_estimator=cov_estimator, kind=measure)
-        matrices = vec_to_sym(
-            cov_embedding.fit_transform(subjects))
+        cov_embedding = ConnectivityMeasure(cov_estimator=cov_estimator,
+                                            kind=measure)
+        matrices = cov_embedding.fit_transform(subjects)
         all_matrices[measure] = matrices
         if measure == 'tangent':
             mean = cov_embedding.mean_cov_

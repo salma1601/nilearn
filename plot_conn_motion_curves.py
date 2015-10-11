@@ -1,7 +1,6 @@
-"""This example:
-- splits the dataset into high moving and low moving groups of subjects
-- runs two-sample Student's t-tests betweens the groups
-- plots the connectivity matrices and graphs
+"""This example plots the evolution of mean correlation and corr(gmean)
+- when moving subjects are added incrementally
+- when stable subjects are removed incrementally
 """
 import numpy as np
 import matplotlib.pylab as plt
@@ -43,20 +42,19 @@ median_abs_displacement = np.median(np.abs(displacement), axis=1)
 # Sort subjects by maximal eigenvalue / noise
 indices = np.argsort(median_abs_displacement[:, :3])
 n_subjects = len(subjects)
-max_outliers = 19 * n_subjects / 20
-low_motion_subjects = subjects[:n_subjects - max_outliers]
-high_motion_subjects = subjects[n_subjects - max_outliers:][::-1]  # start by highest moving
+n_inliers = 4
+max_outliers = n_subjects - n_inliers
+low_motion_subjects = subjects[:n_inliers]
+high_motion_subjects = subjects[n_inliers:][::-1]  # start by highest moving
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
 import nilearn.connectivity
-measures = ["robust dispersion", "correlation", "partial correlation",
-            "covariance", "precision"]
-measures = ["robust dispersion", "correlation"]
+measures = ["robust dispersion", "covariance"]
 
 # Compute mean connectivity for low moving subjects
 cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-    kind='correlation', cov_estimator=EmpiricalCovariance())
+    kind='covariance', cov_estimator=EmpiricalCovariance())
 subjects_connectivity = cov_embedding.fit_transform(low_motion_subjects)
 mean_connectivity_low_subjects = subjects_connectivity.mean(axis=0)
 
@@ -67,15 +65,14 @@ for measure in measures:
     for n_outliers in range(max_outliers):
         # Incrementally add high moving subjects
         subjects_to_plot = low_motion_subjects +\
-                           high_motion_subjects[:n_outliers]
+            high_motion_subjects[:n_outliers]
 
         # Compute mean connectivity
         cov_embedding = nilearn.connectivity.ConnectivityMeasure(
             kind=measure, cov_estimator=EmpiricalCovariance())
         subjects_connectivity = cov_embedding.fit_transform(subjects_to_plot)
         if measure == 'robust dispersion':
-            mean_connectivities.append(
-                matrix_stats.cov_to_corr(cov_embedding.robust_mean_))
+            mean_connectivities.append(cov_embedding.robust_mean_)
         else:
             mean_connectivities.append(subjects_connectivity.mean(axis=0))
 

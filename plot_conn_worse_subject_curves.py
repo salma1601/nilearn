@@ -43,7 +43,7 @@ motion = np.max(norm_displacement, axis=1)
 # Sort subjects by maximal eigenvalue / noise
 indices = np.argsort(motion)
 import nilearn.connectivity
-cov_embedding = nilearn.connectivity.ConnectivityMeasure(kind='correlation')
+cov_embedding = nilearn.connectivity.ConnectivityMeasure(kind='covariance')
 subjects_covariance = cov_embedding.fit_transform(subjects)
 max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
                    subject_connectivity in subjects_covariance]

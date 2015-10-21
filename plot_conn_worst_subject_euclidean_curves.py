@@ -1,5 +1,6 @@
 """This example plots the evolution of the distance from the mean covariance
-and gmean to the least moving subject(s).
+and gmean to the half best subjects starting from the worst subjects and adding the good subjects
+incrementally.
 """
 import numpy as np
 import matplotlib.pylab as plt
@@ -34,32 +35,30 @@ dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
                                    networks=networks)
 subjects = dataset.time_series[condition]
 
-# Compute median translation
-displacement = np.diff(dataset.motion[condition], axis=1)
-norm_displacement = np.linalg.norm(displacement[..., :3], axis=-1)
-motion = np.max(norm_displacement, axis=1)
-
 # Sort subjects by maximal eigenvalue / noise
 import nilearn.connectivity
+standard_measure = 'correlation'
 cov_embedding = nilearn.connectivity.ConnectivityMeasure(kind='covariance')
 subjects_covariance = cov_embedding.fit_transform(subjects)
-max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).prod() for
+max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
                    subject_connectivity in subjects_covariance]
 indices_eig = np.argsort(max_eigenvalues)
 subjects = np.array(subjects)[indices_eig]
 n_subjects = len(subjects)
 n_inliers = n_subjects / 2
 max_outliers = n_subjects - n_inliers
+max_inliers = n_inliers
 low_motion_subjects = subjects[:n_inliers]
 high_motion_subjects = subjects[n_inliers:]
 
+
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-measures = ["robust dispersion", "covariance"]
+measures = ["robust dispersion", standard_measure]
 
 # Compute mean connectivity for low moving subjects
 cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-    kind='covariance', cov_estimator=EmpiricalCovariance())
+    kind=standard_measure, cov_estimator=EmpiricalCovariance())
 subjects_connectivity = cov_embedding.fit_transform(low_motion_subjects)
 mean_connectivity_low_subjects = subjects_connectivity.mean(axis=0)
 
@@ -75,27 +74,28 @@ for measure in measures:
     average_connectivity_errors[measure] = []
     std_connectivity_errors[measure] = []
 
-for n_outliers in range(max_outliers + 1):
-    print('{} outliers'.format(n_outliers))
-    if n_outliers == 0:
-        outliers_combinations = [(np.arange(max_outliers), np.array([]))]
-    elif n_outliers < max_outliers:
-        outliers_combinations = cross_validation.ShuffleSplit(
-            max_outliers, n_iter=max_combinations, test_size=n_outliers,
+for n_inliers in range(max_inliers + 1):
+    print('{} inliers'.format(n_inliers))
+    if n_inliers == 0:
+        inliers_combinations = [(np.arange(max_inliers), np.array([]))]
+    elif n_inliers < max_inliers:
+        inliers_combinations = cross_validation.ShuffleSplit(
+            max_inliers, n_iter=max_combinations, test_size=n_inliers,
             random_state=0)
     else:
-        outliers_combinations = [((), np.arange(max_outliers))]
+        inliers_combinations = [((), np.arange(max_inliers))]
+
     for measure in measures:
         connectivity_errors[measure] = []
 
-    # Add random combinations of n_outliers high moving subjects
-    for n, (_, outliers_indices) in enumerate(outliers_combinations):
-        if np.array(outliers_indices).shape != (0,):
-            outliers = high_motion_subjects[outliers_indices]
+    # Incrementally add high moving subjects
+    for n, (_, inliers_indices) in enumerate(inliers_combinations):
+        if np.array(inliers_indices).shape != (0,):
+            inliers = low_motion_subjects[inliers_indices]
             subjects_to_plot = np.concatenate(
-                (low_motion_subjects, np.array(outliers)), axis=0)
+                (high_motion_subjects, np.array(inliers)), axis=0)
         else:
-            subjects_to_plot = low_motion_subjects
+            subjects_to_plot = high_motion_subjects
 
         # Compute mean connectivity
         for measure in measures:
@@ -104,14 +104,17 @@ for n_outliers in range(max_outliers + 1):
             subjects_connectivity = cov_embedding.fit_transform(
                 subjects_to_plot)
             if measure == 'robust dispersion':
-                mean_connectivity = cov_embedding.robust_mean_#matrix_stats.cov_to_corr(
+                if standard_measure == 'correlation':
+                    mean_connectivity = matrix_stats.cov_to_corr(
+                        cov_embedding.robust_mean_)
+                else:
+                    mean_connectivity = cov_embedding.robust_mean_
             else:
                 mean_connectivity = subjects_connectivity.mean(axis=0)
-
             connectivity_errors[measure].append(np.linalg.norm(
                 mean_connectivity_low_subjects - mean_connectivity))
 
-    # Compute the average error for all combinations
+    # Compute the average error for a given number of outliers
     for measure in measures:
         average_connectivity_errors[measure].append(
             np.mean(connectivity_errors[measure]))
@@ -126,12 +129,15 @@ for measure in measures:
 
 # Plot the errors
 plt.figure(figsize=(5, 4.5))
-for measure, color in zip(measures, ['green', 'blue']):
-    if measure == 'covariance':
+for measure, color in zip(measures, ['red', 'blue']):
+    if measure == standard_measure:
         label = 'arithmetic mean'
     elif measure == 'robust dispersion':
-        label = 'geometric mean'
-    plt.plot(np.arange(max_outliers + 1),
+        if standard_measure == 'correlation':
+            label = 'corr(geometric mean)'
+        else:
+            label = 'geometric mean'
+    plt.plot(np.arange(max_inliers + 1),
              average_connectivity_errors[measure],
              label=label, color=color)
     axes = plt.gca()
@@ -139,14 +145,17 @@ for measure, color in zip(measures, ['green', 'blue']):
         std_connectivity_errors[measure]
     upper_bound = average_connectivity_errors[measure] +\
         std_connectivity_errors[measure]
-    axes.fill_between(np.arange(max_outliers + 1), lower_bound, upper_bound,
+    axes.fill_between(np.arange(max_inliers + 1), lower_bound, upper_bound,
                       facecolor=color, alpha=0.2)
 plt.rc('text', usetex=True)
-plt.xlabel('number of noisy subjects used')
+plt.xlabel('number of non-noisy subjects used')
 axes = plt.gca()
 axes.yaxis.tick_right()
 plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '
            'mean of non-noisy subjects')
-plt.legend(loc='lower right')
-plt.savefig('/home/sb238920/CODE/salma/figures/curves.pdf')
+plt.legend(loc='upper right')
+if standard_measure == "correlation":
+    plt.savefig('/home/sb238920/CODE/salma/figures/euclidean_corr_inverted_curves.pdf')
+else:
+    plt.savefig('/home/sb238920/CODE/salma/figures/euclidean_inverted_curves.pdf')
 plt.show()

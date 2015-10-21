@@ -29,8 +29,8 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-condition = 'ReSt2_Placebo'
-dataset = dataset_loader.load_conn(conn_folder_filt, conditions=[condition],
+condition = 'ReSt1_Placebo'
+dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
                                    standardize=False,
                                    networks=networks)
 subjects = dataset.time_series[condition]
@@ -40,8 +40,11 @@ displacement = np.diff(dataset.motion[condition], axis=1)
 median_abs_displacement = np.median(np.abs(displacement), axis=1)
 
 # Sort subjects by maximal eigenvalue / noise
-indices = np.argsort(median_abs_displacement[:, :3])
+motion = np.median(np.linalg.norm(displacement[..., :3], axis=-1),
+                     axis=-1)
+indices = np.argsort(motion)
 n_subjects = len(subjects)
+subjects = np.array(subjects)[indices]
 n_inliers = 4
 max_outliers = n_subjects - n_inliers
 low_motion_subjects = subjects[:n_inliers]

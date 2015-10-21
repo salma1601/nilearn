@@ -25,14 +25,14 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-condition = 'ReSt1_Placebo'
+condition = 'Nbac3_Placebo'
 dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
                                    standardize=False,
                                    networks=networks)
 subjects = dataset.time_series[condition]
 
 # Estimate connectivity matrices
-from sklearn.covariance import EmpiricalCovariance, LedoitWolf
+from sklearn.covariance import EmpiricalCovariance
 import nilearn.connectivity
 measures = ["covariance", "robust dispersion"]
 
@@ -70,7 +70,7 @@ feature_name = {'euclidean': 'maximal eigenvalue',
 feature['euclidean'] = [np.linalg.eigvalsh(subject_connectivity).max() for
                         subject_connectivity in
                         subjects_connectivity['covariance']]
-feature['geometric'] = [(np.linalg.eigvalsh(subject_connectivity) * 1.).prod()
+feature['geometric'] = [(np.linalg.eigvalsh(subject_connectivity) * 10.).prod()
                         for subject_connectivity in
                         subjects_connectivity['covariance']]
 for distance_type in ['euclidean', 'geometric']:
@@ -87,14 +87,11 @@ spreading_euc = analyzing.compute_spreading(
 spreading_geo = analyzing.compute_geo_spreading(
     subjects_connectivity['correlation'])
 
-displacement = np.diff(dataset.motion[condition], axis=1)
-norm_displacement = np.linalg.norm(displacement[..., :3], axis=-1)
-motion = np.max(norm_displacement, axis=1)
 for spreading, distance_type in zip([spreading_euc, spreading_geo],
                                     ['euclidean', 'geometric']):
     # Relate feature and average squared distance to the rest of subjects
     plt.figure(figsize=(5, 4.5))
-    plt.scatter(np.log10(feature[distance_type]), motion) #spreading
+    plt.scatter(feature[distance_type], spreading)
     plt.xlabel('covariance {}'.format(feature_name[distance_type]))
     plt.ylabel('average {} distance'.format(distance_type))
 
@@ -113,12 +110,12 @@ for distance_type in ['euclidean', 'geometric']:
                 label=label,
                 color=color,
                 alpha=.3)
-    plt.xlabel('subject rank, sorted by covariance {}'
+    plt.xlabel('subject rank, sorted by maximal covariance {}'
                .format(feature_name[distance_type]))
     axes = plt.gca()
     axes.yaxis.tick_right()
     plt.ylabel('{} distance to means'.format(distance_type))
-    plt.legend(loc='lower right')
+    plt.legend(loc='upper left')
     plt.savefig('/home/sb238920/CODE/salma/figures/{}_distance_bars_rs1.pdf'
                 .format(distance_type))
 plt.show()

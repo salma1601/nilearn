@@ -86,7 +86,7 @@ def _map_eigenvalues(function, symmetric):
     return _form_symmetric(function, eigenvalues, eigenvectors)
 
 
-def _geometric_mean(matrices, init=None, max_iter=10, tol=1e-7):
+def _geometric_mean(matrices, init=None, max_iter=0, tol=1e-7):
     """Compute the geometric mean of symmetric positive definite matrices.
 
     The geometric mean of n positive definite matrices
@@ -305,7 +305,7 @@ class ConnectivityMeasure(BaseEstimator, TransformerMixin):
         if self.kind == 'robust dispersion':
             covariances = [self.cov_estimator_.fit(x).covariance_ for x in X]
             self.robust_mean_ = _geometric_mean(covariances, max_iter=30,
-                                                tol=1e-7)
+                                                tol=1e-9)
             self.whitening_ = _map_eigenvalues(lambda x: 1. / np.sqrt(x),
                                                self.robust_mean_)
 

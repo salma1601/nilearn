@@ -55,11 +55,12 @@ high_motion_subjects = subjects[n_inliers:]
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-measures = ["robust dispersion", "covariance"]
+standard_measure = 'correlation'
+measures = ["robust dispersion", standard_measure]
 
 # Compute mean connectivity for low moving subjects
 cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-    kind='covariance', cov_estimator=EmpiricalCovariance())
+    kind=standard_measure, cov_estimator=EmpiricalCovariance())
 subjects_connectivity = cov_embedding.fit_transform(low_motion_subjects)
 mean_connectivity_low_subjects = subjects_connectivity.mean(axis=0)
 
@@ -104,7 +105,11 @@ for n_outliers in range(max_outliers + 1):
             subjects_connectivity = cov_embedding.fit_transform(
                 subjects_to_plot)
             if measure == 'robust dispersion':
-                mean_connectivity = cov_embedding.robust_mean_#matrix_stats.cov_to_corr(
+                if standard_measure == 'correlation':
+                    mean_connectivity = matrix_stats.cov_to_corr(
+                        cov_embedding.robust_mean_)
+                else:
+                    mean_connectivity = cov_embedding.robust_mean_
             else:
                 mean_connectivity = subjects_connectivity.mean(axis=0)
 
@@ -126,11 +131,14 @@ for measure in measures:
 
 # Plot the errors
 plt.figure(figsize=(5, 4.5))
-for measure, color in zip(measures, ['green', 'blue']):
-    if measure == 'covariance':
+for measure, color in zip(measures, ['red', 'blue']):
+    if measure == standard_measure:
         label = 'arithmetic mean'
     elif measure == 'robust dispersion':
-        label = 'geometric mean'
+        if standard_measure == 'correlation':
+            label = 'corr(geometric mean)'
+        else:
+            label = 'geometric mean'
     plt.plot(np.arange(max_outliers + 1),
              average_connectivity_errors[measure],
              label=label, color=color)
@@ -148,5 +156,8 @@ axes.yaxis.tick_right()
 plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '
            'mean of non-noisy subjects')
 plt.legend(loc='lower right')
-plt.savefig('/home/sb238920/CODE/salma/figures/curves.pdf')
+if standard_measure == "correlation":
+    plt.savefig('/home/sb238920/CODE/salma/figures/euclidean_corr_curves.pdf')
+else:
+    plt.savefig('/home/sb238920/CODE/salma/figures/euclidean_curves.pdf')
 plt.show()

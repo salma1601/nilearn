@@ -70,8 +70,8 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
     conn_rois_coords = roi_mat['xyz']
     rois_labels = [roi_label for network in networks for roi_label in
                    network[1]]
-    rois_coords = [coord for (label, coord) in zip(conn_rois_labels,
-                   conn_rois_coords) if label.replace('_1', '') in rois_labels]
+    rois_coords = [conn_rois_coords[np.where(conn_rois_labels == label)][0] for
+                   label in rois_labels]
     if len(rois_labels) != len(rois_coords):
         print conn_rois_labels
         raise ValueError('Mismatch between ROIs labels and coordinates')

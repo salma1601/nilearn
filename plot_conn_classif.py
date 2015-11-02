@@ -40,6 +40,7 @@ subjects = [subj for condition in conditions for subj in
             dataset.time_series[condition]]
 subjects_connectivity = {}
 mean_connectivity = {}
+from sklearn.covariance import LedoitWolf
 for measure in measures:
     cov_embedding = nilearn.connectivity.ConnectivityMeasure(
         kind=measure, cov_estimator=EmpiricalCovariance())

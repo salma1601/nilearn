@@ -73,7 +73,7 @@ for measure in measures:
                 .format(name, thereshold))
 
 from funtk.connectivity import matrix_stats
-titles = ['geometric covariances mean' if measure == 'robust dispersion'
+titles = ['geometric' if measure == 'robust dispersion'
           else measure for measure in measures]
 matrix_stats.plot_matrices(
     [mean_connectivity[measure] for measure in measures],

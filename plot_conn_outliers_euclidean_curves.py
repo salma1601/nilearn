@@ -43,9 +43,9 @@ motion = np.max(norm_displacement, axis=1)
 import nilearn.connectivity
 cov_embedding = nilearn.connectivity.ConnectivityMeasure(kind='covariance')
 subjects_covariance = cov_embedding.fit_transform(subjects)
-max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).prod() for
+max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
                    subject_connectivity in subjects_covariance]
-indices_eig = np.argsort(max_eigenvalues)
+indices_eig = np.argsort(motion)
 subjects = np.array(subjects)[indices_eig]
 n_subjects = len(subjects)
 n_inliers = n_subjects / 2
@@ -55,7 +55,7 @@ high_motion_subjects = subjects[n_inliers:]
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-standard_measure = 'correlation'
+standard_measure = 'covariance'
 measures = ["robust dispersion", standard_measure]
 
 # Compute mean connectivity for low moving subjects

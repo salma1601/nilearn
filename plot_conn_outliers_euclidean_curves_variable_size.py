@@ -41,7 +41,7 @@ motion = np.max(norm_displacement, axis=1)
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-standard_measure = 'covariance'
+standard_measure = 'correlation'
 measures = ["robust dispersion", standard_measure]
 
 # Compute errors in mean connectivities
@@ -79,7 +79,7 @@ for n_subjects in range(min_subjects, max_subjects + 1, 2):
         cov_embedding = nilearn.connectivity.ConnectivityMeasure(
             kind='covariance')
         subjects_covariance = cov_embedding.fit_transform(used_subjects)
-        max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).prod() for
+        max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
                            subject_connectivity in subjects_covariance]
         indices_eig = np.argsort(max_eigenvalues)
         used_subjects = used_subjects[indices_eig]

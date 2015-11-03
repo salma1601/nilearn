@@ -51,33 +51,64 @@ for measure in measures:
 
 # Plot the mean difference in connectivity
 import nilearn.plotting
-labels, region_coords = zip(*dataset.rois)
+regions_labels, region_coords = zip(*dataset.rois)
 
 node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for label
-              in labels]
+              in regions_labels]
 edge_threshold = '95%'
 for measure in measures:
     if measure == 'robust dispersion':
-        title = 'geometric covariances mean'
+        title = 'geometric mean'
     else:
         title = 'mean ' + measure
     nilearn.plotting.plot_connectome(mean_connectivity[measure], region_coords,
                                      edge_threshold=edge_threshold,
                                      node_color=node_color,
+                                     display_mode='z',
                                      title=title)
     name = measure.replace(' ', '_')
     thereshold = edge_threshold.replace('%', '_percent')
     if measure == 'robust dispersion':
         name = 'geometric'
-    plt.savefig('/home/sb238920/CODE/salma/figures/mean_{0}_th_{1}.pdf'
+    plt.savefig('/home/sb238920/CODE/salma/figures/mean_{0}_th_{1}_rs1.pdf'
                 .format(name, thereshold))
-
+# Plot mean connectivity matrices
 from funtk.connectivity import matrix_stats
+if networks is None:
+    n_regions_per_ntwk = [9, 5, 7, 4, 10, 7, 2]
+else:
+    n_regions_per_ntwk = [len(regions) for name, regions in networks]
+tick_labels = []
+for label in regions_labels:
+    if label == 'LMFG_peak1':
+        tick_labels.append('L MFG')
+    elif label == 'RCPL_peak1':
+        tick_labels.append('R CPL')
+    elif label == 'LCPL_peak3':
+        tick_labels.append('L CPL')
+    elif label == 'FEF.cluster001':
+        tick_labels.append('R FEF')
+    elif label == 'FEF.cluster002':
+        tick_labels.append('L FEF')
+    elif 'cluster001' in label:
+        tick_labels.append('L ' + label.replace('.cluster001', ''))
+    elif 'cluster002' in label:
+        tick_labels.append('R ' + label.replace('.cluster002', ''))
+    else:
+        tick_labels.append(label)
 titles = ['geometric' if measure == 'robust dispersion'
           else measure for measure in measures]
 matrix_stats.plot_matrices(
     [mean_connectivity[measure] for measure in measures],
-    titles=titles, zero_diag=True)
+    titles=titles,
+    tick_labels=tick_labels,
+    lines=np.cumsum(n_regions_per_ntwk)[:-1],
+    zero_diag=True, font_size=6)
+filename = '/home/sb238920/CODE/salma/figures/mean_matrices_rs1.pdf'
+from matplotlib import pylab
+import os
+pylab.savefig(filename)
+os.system("pdfcrop %s %s" % (filename, filename))
 
 nilearn.plotting.plot_connectome(
     matrix_stats.cov_to_corr(mean_connectivity['robust dispersion']) -

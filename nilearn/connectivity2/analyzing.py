@@ -28,25 +28,8 @@ def compute_connectivity(subjects, measures=['covariance', 'precision',
     return all_matrices, mean_matrices
 
 
-def _compute_variance(matrix, matrices):
-    """Computes the average distance from each matrix to the others.
-
-    Parameters
-    ==========
-    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
-        The input matrices.
-
-    Returns
-    =======
-    variance : float
-        The average squared distance from each matrix to the others.
-    """
-    distances = [np.linalg.norm(matrix - m) ** 2 for m in matrices]
-    return np.mean(distances)
-
-
 def _compute_distance(matrix1, matrix2, distance_type='euclidean'):
-    """Computes the average geometric distance from each matrix to the others.
+    """Computes the average distance between 2 matrices.
 
     Parameters
     ==========
@@ -78,8 +61,66 @@ def _compute_distance(matrix1, matrix2, distance_type='euclidean'):
     return distance
 
 
+def _compute_variance(matrix, matrices):
+    """Computes the average squared distance from one matrix to a list of
+    matrices.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    variance : float
+        The average squared distance from each matrix to the others.
+    """
+    distances = [np.linalg.norm(matrix - m) ** 2 for m in matrices]
+    return np.mean(distances)
+
+
+def _compute_std(matrix, matrices):
+    """Computes the average distance from one matrix to a list of matrices.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    variance : float
+        The average squared distance from each matrix to the others.
+    """
+    distances = [np.linalg.norm(matrix - m) for m in matrices]
+    return np.mean(distances)
+
+
 def _compute_geo_variance(matrix, matrices):
-    """Computes the average geometric distance from each matrix to the others.
+    """Computes the average squared geometric distance from one matrix to a
+    list of matrices.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    variance : float
+        The average distance from each matrix to the others.
+    """
+    vals, vecs = linalg.eigh(matrix)
+    matrix_inv_sqrt = _form_symmetric(np.sqrt, 1. / vals, vecs)
+    whitened_matrices = [_map_eigenvalues(
+        np.log, matrix_inv_sqrt.dot(m).dot(matrix_inv_sqrt)) for m in matrices]
+    distances = [np.linalg.norm(w) ** 2 for w in whitened_matrices]
+    return np.mean(distances)
+
+
+def _compute_geo_std(matrix, matrices):
+    """Computes the average geometric distance from one matrix to a list of
+    matrices.
 
     Parameters
     ==========
@@ -100,7 +141,7 @@ def _compute_geo_variance(matrix, matrices):
 
 
 def compute_spreading(matrices):
-    """Computes the average distance from each matrix to the others.
+    """Computes the average squared distance from each matrix to the others.
 
     Parameters
     ==========
@@ -122,8 +163,32 @@ def compute_spreading(matrices):
     return variances
 
 
+def compute_std_spreading(matrices):
+    """Computes the average distance from each matrix to the others.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    spreading : list, length n_matrices
+        The average distance from each matrix to the others.
+    """
+    variances = []
+    n_matrices = matrices.shape[0]
+    # TODO: remove for loop
+    for matrix_n, matrix in enumerate(matrices):
+        indices = range(n_matrices)
+        indices.remove(matrix_n)
+        variances.append(_compute_std(matrix, matrices[indices, ...]))
+    return variances
+
+
 def compute_geo_spreading(matrices):
-    """Computes the average geometric distance from each matrix to the others.
+    """Computes the average squared geometric distance from each matrix to the
+    others.
 
     Parameters
     ==========
@@ -142,6 +207,30 @@ def compute_geo_spreading(matrices):
         indices = range(n_matrices)
         indices.remove(matrix_n)
         variances.append(_compute_geo_variance(matrix, matrices[indices, ...]))
+    return variances
+
+
+def compute_geo_std_spreading(matrices):
+    """Computes the average squared geometric distance from each matrix to the
+    others.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    spreading : list, length n_matrices
+        The average distance from each matrix to the others.
+    """
+    variances = []
+    n_matrices = matrices.shape[0]
+    # TODO: remove for loop
+    for matrix_n, matrix in enumerate(matrices):
+        indices = range(n_matrices)
+        indices.remove(matrix_n)
+        variances.append(_compute_geo_std(matrix, matrices[indices, ...]))
     return variances
 
 

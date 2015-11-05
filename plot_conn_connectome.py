@@ -13,7 +13,7 @@ WMN = ['IPL', 'LMFG_peak1',
 AN = ['vIPS.cluster001', 'vIPS.cluster002',
       'pIPS.cluster001', 'pIPS.cluster002',
       'MT.cluster001', 'MT.cluster002',
-      'FEF.cluster001', 'FEF.cluster002']
+      'FEF.cluster002', 'FEF.cluster001']
 DMN = ['RTPJ', 'RDLPFC', 'AG.cluster001', 'AG.cluster002',
        'SFG.cluster001', 'SFG.cluster002',
        'PCC', 'MPFC', 'FP']
@@ -55,7 +55,7 @@ regions_labels, region_coords = zip(*dataset.rois)
 
 node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for label
               in regions_labels]
-edge_threshold = '95%'
+edge_threshold = '98%'
 for measure in measures:
     if measure == 'robust dispersion':
         title = 'geometric mean'

@@ -41,7 +41,7 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-conditions = ['ReSt1_Placebo', 'Nbac2_Placebo']
+conditions = ['Nbac2_Placebo', 'Nbac3_Placebo']
 dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=conditions,
                                    standardize=False,
                                    networks=networks)
@@ -148,7 +148,7 @@ set_box_colors(bp, colors)
 
 # set axes limits and labels
 plt.xlim(0, 3 * (n_boxes + 1))
-plt.ylim(1, 8)
+#plt.ylim(1, 8)
 ax.set_xticklabels(['geometric\nbetween\ncovariances',
                     'euclidean\n between \ncorrelations',
                     'euclidean\n between \npartial correlations'])
@@ -159,7 +159,7 @@ hB, = plt.plot([1, 1], 'b-')
 hR, = plt.plot([1, 1], 'r-')
 hG, = plt.plot([1, 1], 'g-')
 conditions_names = [cond.replace('_Placebo', '') for cond in conditions]
-plt.legend([hB, hR, hG], conditions_names + ['between\nconditions'])
+#plt.legend([hB, hR, hG], conditions_names + ['between\nconditions'])
 hB.set_visible(False)
 hR.set_visible(False)
 hG.set_visible(False)
@@ -197,3 +197,30 @@ hR.set_visible(False)
 hG.set_visible(False)
 plt.savefig('/home/sb238920/CODE/salma/figures/boxplots_euclidean_covariances.pdf')
 plt.show()
+
+# Scatter plot inter-subject distances
+condition = conditions[0]
+plt.figure()
+from itertools import cycle
+colors = cycle(['r', 'g', 'b', 'm', 'y'])
+for n_col in range(40):
+    start = 40 * n_col
+    size = 40 - n_col
+    plt.scatter(inter_subjects_corr_distances[condition][start:start + size],
+                inter_subjects_part_distances[condition][start:start + size],
+                c=colors.next())
+plt.xlabel('euclidean distance between correlations')
+plt.ylabel('euclidean distance between partial correlations')
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_euclidean_rs1.pdf')
+plt.figure()
+plt.scatter(inter_subjects_corr_distances[condition],
+            inter_subjects_gdistances[condition])
+plt.xlabel('euclidean distance between correlations')
+plt.ylabel('geometric distance between covariances')
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_corr_rs1.pdf')
+plt.figure()
+plt.scatter(inter_subjects_part_distances[condition],
+            inter_subjects_gdistances[condition])
+plt.xlabel('euclidean distance between partial correlations')
+plt.ylabel('geometric distance between covariances')
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_part_rs1.pdf')

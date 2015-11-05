@@ -1,5 +1,13 @@
-"""This example plots the evolution of the distance from the mean covariance
-and gmean to the least moving subject(s).
+"""This example plots the individual connectivity matrices and graphs for the
+good and bad subjects identified by sorting w.r.t. different criteria
+- the average squared euclidean distance to the other correlations, partial
+correlations and covariances
+- the average euclidean distance to the other correlations, partial
+correlations and covariances
+- the average squared euclidean distance to the other covariances
+- the average squared geometric distance to the other covariances
+- the maximal covariance eigenvalues
+- the covariance determinant
 """
 import numpy as np
 import matplotlib.pylab as plt
@@ -52,178 +60,95 @@ for measure in measures:
         mean_connectivity[measure] = \
             subjects_connectivity[measure].mean(axis=0)
 
-# Relate motion and eigenvalues
-max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
-                   subject_connectivity in subjects_connectivity['covariance']]
-min_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).min() for
-                   subject_connectivity in subjects_connectivity['covariance']]
-indices_eig = np.argsort(max_eigenvalues)
-indices_eig_min = np.argsort(min_eigenvalues)
-
-# Compute average squared distance from each subject to the others
+# Sorting the subjects
 from nilearn.connectivity2 import analyzing
 indices = {}
-for measure in ['correlation', 'partial correlation', 'covariance']:
-    if measure == 'covariance':
-        compute_variance = analyzing.compute_geo_spreading
-    else:
-        compute_variance = analyzing.compute_spreading
+features = {}
+for measure in ['correlation', 'partial correlation']:
+    features['euclidean ' + measure] = analyzing.compute_std_spreading(
+        subjects_connectivity[measure])
 
-    mean_variance = compute_variance(subjects_connectivity[measure])
-    indices[measure] = np.argsort(mean_variance)
+for measure in ['correlation', 'partial correlation']:
+    features['euclidean squared ' + measure] = analyzing.compute_spreading(
+        subjects_connectivity[measure])
 
-# Plot individual connectivity matrices
+features['geometric squared'] = analyzing.compute_geo_spreading(
+    subjects_connectivity['covariance'])
+features['geometric'] = analyzing.compute_geo_std_spreading(
+    subjects_connectivity['covariance'])
+max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
+                   subject_connectivity in subjects_connectivity['covariance']]
+features['maximal eigenvalue'] = max_eigenvalues
+determinant = [np.linalg.eigvalsh(subject_connectivity).prod() for
+               subject_connectivity in subjects_connectivity['covariance']]
+features['determinant'] = determinant
+
+# Plot correlations and partial correlations matrices for inliers and outliers
 zero_diag = True
 n_inliers = 5
-for measure in ['correlation', 'partial correlation']:
-    inliers_indices = indices[measure][:n_inliers]
-    inliers = subjects_connectivity[measure][inliers_indices, ...]
-    titles = ['subject {}'.format(index + 1) for index in inliers_indices]
-    plot_matrices(inliers, zero_diag=zero_diag, titles=titles,
-                  n_rows=2)
-
-plt.show()
 n_outliers = 2
 n_subjects = len(subjects)
-for measure in ['correlation', 'partial correlation']:
-    outliers_indices = indices[measure][n_outliers:]
-    outliers = subjects_connectivity[measure][outliers_indices, ...]
-    titles = ['subject {}'.format(index + 1) for index in outliers_indices]
-    plot_matrices(outliers, zero_diag=zero_diag, titles=titles)
+for criteria in []:#features.keys():
+    print(criteria)
+    indices = np.argsort(features[criteria])
+    inliers_indices = indices[:n_inliers]
+    outliers_indices = indices[n_subjects - n_outliers:]
+    inliers = {}
+    outliers = {}
+    for measure in ['correlation', 'partial correlation']:
+        inliers[measure] = subjects_connectivity[measure][inliers_indices]
+        titles = ['subject {}'.format(index + 1) for index in inliers_indices]
+        plot_matrices(inliers[measure], zero_diag=zero_diag, titles=titles,
+                      n_rows=2)
+        outliers[measure] = subjects_connectivity[measure][outliers_indices]
+        titles = ['subject {}'.format(index + 1) for index in outliers_indices]
+        plot_matrices(outliers[measure], zero_diag=zero_diag, titles=titles)
 
-plt.show()
-from nilearn import plotting
-
-edge_threshold = 0.35
-labels, region_coords = zip(*dataset.rois)
-node_color = ['g' if label in DMN else 'm' for label in labels]
-display_mode = 'z'
-
-
-edge_threshold = .7
-n_inliers = 0
-measure = 'correlation'
-
-
-for n in range(n_inliers):
-    plotting.plot_connectome(
-        subjects_connectivity['correlation'][indices_eig, ...][n],
-        region_coords,
-        node_color=node_color,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode, title='typ')
-#    plt.savefig('/home/sb238920/CODE/salma/figures/typical_corr_{}_rs1.pdf'.format(n))
-
-for n in range(1):
-#    plot_matrix(subjects_connectivity['correlation'][indices_eig, ...][39 - n])
-    assert_is_outlier(subjects_connectivity['covariance'][indices_eig, ...][39 - n],
-                      subjects_connectivity['covariance'][indices_eig,...][:n_inliers])    
-    plotting.plot_connectome(
-        subjects_connectivity['correlation'][indices_eig, ...][39 - n],
-        region_coords,
-        node_color=node_color,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode, title='out')
-#    plt.savefig('/home/sb238920/CODE/salma/figures/outlier_corr_{}_rs1.pdf'.format(n))
-plt.show()
-########################################
-# covariance
-#######################################
-edge_threshold = '0%'
-labels, region_coords = zip(*dataset.rois)
-node_color = ['g' if label in DMN else 'm' for label in labels]
-display_mode = 'z'
-
-# Plot mean covariance
-plotting.plot_connectome(
-    mean_connectivity['covariance'],
-    region_coords,
-    node_color=node_color,
-    edge_threshold=edge_threshold,
-    display_mode=display_mode)
-plt.savefig('/home/sb238920/CODE/salma/figures/mean_cov_rs1.pdf')
-
-# Plot individual covariance
-for n in range(6):
-    plotting.plot_connectome(
-        subjects_connectivity['covariance'][indices_eig, ...][n],
-        region_coords,
-        node_color=node_color,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode)
-    plt.savefig('/home/sb238920/CODE/salma/figures/typical_cov_{}_rs1.pdf'.format(n))
-
-for n in range(3):
-    plotting.plot_connectome(
-        subjects_connectivity['covariance'][indices_eig, ...][39 - n],
-        region_coords,
-        node_color=node_color,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode)
-    plt.savefig('/home/sb238920/CODE/salma/figures/outlier_cov_{}_rs1.pdf'.format(n))
-plt.show()
-#######################################
-if False:
-    edge_threshold = .25
-    for n in range(6):
-        plotting.plot_connectome(
-            subjects_connectivity['partial correlation'][indices_eig_min, ...][n],
-            region_coords,
-            node_color=node_color,
-            edge_threshold=edge_threshold,
-            display_mode=display_mode,
-            title='typical partials, subject {}'.format(indices_eig_min[n]))
-        plt.savefig('/home/sb238920/CODE/salma/figures/typical_part_{}_rs1.pdf'.format(n))
-    
-    for n in range(3):
-        plotting.plot_connectome(
-            subjects_connectivity['partial correlation'][indices_eig_min, ...][39 - n],
-            region_coords,
-            node_color=node_color,
-            edge_threshold=edge_threshold,
-            display_mode=display_mode,
-            title='outliers partials, subject {}'.format(indices_eig_min[39 - n]))
-        plt.savefig('/home/sb238920/CODE/salma/figures/outlier_part_{}_rs1.pdf'.format(n))
+    # Plot correlations and partial correlations connectivity graphs for
+    # inliers and outliers
+    from nilearn import plotting
+    labels, region_coords = zip(*dataset.rois)
+    node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for
+                  label in labels]
+    display_mode = 'z'
+    edge_threshold = '95%'
+    for measure in ['correlation', 'partial correlation']:
+        for n, inlier in enumerate(inliers[measure]):
+            plotting.plot_connectome(
+                inlier,
+                region_coords,
+                node_color=node_color,
+                edge_threshold=edge_threshold,
+                display_mode=display_mode,
+                title='inlier {0}, {1}'.format(n, measure))
+            plt.savefig('/home/sb238920/CODE/salma/figures/inliers_{0}_{1}_rs1'
+                        '.pdf'.format(measure, n))
+        for n, outlier in enumerate(outliers[measure]):
+            plotting.plot_connectome(
+                inlier,
+                region_coords,
+                node_color=node_color,
+                edge_threshold=edge_threshold,
+                display_mode=display_mode,
+                title='outlier {0}, {1}'.format(n, measure))
+            plt.savefig('/home/sb238920/CODE/salma/figures/outliers_{0}_{1}_rs1'
+                        '.pdf'.format(measure, n))
     plt.show()
 
-for n in range(0):
-    plotting.plot_connectome(
-        subjects_connectivity['correlation'][indices_eig, ...][n],
-        region_coords,
-        edge_threshold=.2,
-        title='typical corr max eig {}'.format(n))
-    plotting.plot_connectome(
-        subjects_connectivity['correlation'][indices_eig, ...][39 - n],
-        region_coords,
-        edge_threshold=.2,
-        title='outliers corr max eig {}'.format(n))
-    plotting.plot_connectome(
-        subjects_connectivity['partial correlation'][indices_eig, ...][n],
-        region_coords,
-        edge_threshold=.2,
-        title='typical part max eig {}'.format(n))
-
-    plotting.plot_connectome(
-        subjects_connectivity['partial correlation'][indices_eig, ...][39 - n],
-        region_coords,
-        edge_threshold=.2,
-        title='outliers part max eigen {}'.format(n))
+# Scatter plot some features
+plt.figure()
+plt.scatter(features['geometric'],
+            features['euclidean correlation'])
+plt.xlabel('geometric')
+plt.ylabel('euclidean correlation')
+plt.figure()
+plt.scatter(features['geometric'],
+            features['euclidean partial correlation'])
+plt.xlabel('geometric')
+plt.ylabel('euclidean partial correlation')
+plt.figure()
+plt.scatter(features['euclidean correlation'],
+            features['euclidean partial correlation'])
+plt.xlabel('euclidean correlation')
+plt.ylabel('euclidean partial correlation')
 plt.show()
-
-# Compare typical covariances to gmean and amean
-edge_threshold = .025
-for n in range(0):
-    plotting.plot_connectome(
-        subjects_connectivity['covariance'][indices_eig, ...][n],
-        region_coords,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode,
-        title='typical covariance {}'.format(n))
-for measure in ['robust dispersion', 'covariance']:
-    plotting.plot_connectome(
-        mean_connectivity[measure],
-        region_coords,
-        edge_threshold=edge_threshold,
-        display_mode=display_mode)
-plt.show()
-

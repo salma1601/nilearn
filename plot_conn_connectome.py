@@ -55,12 +55,12 @@ regions_labels, region_coords = zip(*dataset.rois)
 
 node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for label
               in regions_labels]
-edge_threshold = '98%'
+edge_threshold = '90%'
 for measure in measures:
     if measure == 'robust dispersion':
-        title = 'geometric mean'
+        title = 'geometric'
     else:
-        title = 'mean ' + measure
+        title = measure
     nilearn.plotting.plot_connectome(mean_connectivity[measure], region_coords,
                                      edge_threshold=edge_threshold,
                                      node_color=node_color,

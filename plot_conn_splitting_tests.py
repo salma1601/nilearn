@@ -127,13 +127,21 @@ for measure in ['partial correlation', 'covariance',
             tick_labels.append('R ' + label.replace('.cluster002', ''))
         else:
             tick_labels.append(label)
+    if measure == 'robust dispersion':
+        cb_label = 'geometric covariance'
+        cb_label_difference = 'deviation'
+    else:
+        cb_label = measure
+        cb_label_difference = 'difference'
+    figure = plt.figsize((14, 7))
     matrix_stats.plot_matrices(matrices,
-                               titles=['low motion',
-                                       'high motion',
-                                       'high - low'],                          
-                               tick_labels=tick_labels,
-                               lines=np.cumsum(n_regions_per_ntwk)[:-1],
-                               zero_diag=True, font_size=6)
+                           titles=['low motion',
+                                   'high motion',
+                                   'high - low'],                          
+                           tick_labels=tick_labels,
+                           lines=np.cumsum(n_regions_per_ntwk)[:-1],
+                           zero_diag=True, font_size=6,
+                           cb_labels=[cb_label, cb_label, cb_label_difference])
     import os
     from matplotlib import pylab
     if measure == 'robust dispersion':

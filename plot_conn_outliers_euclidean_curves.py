@@ -45,7 +45,7 @@ cov_embedding = nilearn.connectivity.ConnectivityMeasure(kind='covariance')
 subjects_covariance = cov_embedding.fit_transform(subjects)
 max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
                    subject_connectivity in subjects_covariance]
-indices_eig = np.argsort(motion)
+indices_eig = np.argsort(max_eigenvalues)
 subjects = np.array(subjects)[indices_eig]
 n_subjects = len(subjects)
 n_inliers = n_subjects / 2
@@ -130,7 +130,7 @@ for measure in measures:
         np.array(std_connectivity_errors[measure])
 
 # Plot the errors
-plt.figure(figsize=(5, 4.5))
+figure = plt.figure(figsize=(5, 4.5))
 for measure, color in zip(measures, ['red', 'blue']):
     if measure == standard_measure:
         label = 'arithmetic mean'
@@ -139,18 +139,23 @@ for measure, color in zip(measures, ['red', 'blue']):
             label = 'corr(geometric mean)'
         else:
             label = 'geometric mean'
-    plt.plot(np.arange(max_outliers + 1),
-             average_connectivity_errors[measure],
+    plt.plot(np.arange(max_outliers + 1)[1:-1],
+             average_connectivity_errors[measure][1:-1],
              label=label, color=color)
     axes = plt.gca()
     lower_bound = average_connectivity_errors[measure] -\
         std_connectivity_errors[measure]
     upper_bound = average_connectivity_errors[measure] +\
         std_connectivity_errors[measure]
-    axes.fill_between(np.arange(max_outliers + 1), lower_bound, upper_bound,
+    axes.fill_between(np.arange(max_outliers + 1)[1:-1],
+                      lower_bound[1:-1], upper_bound[1:-1],
                       facecolor=color, alpha=0.2)
 plt.rc('text', usetex=True)
 plt.xlabel('number of noisy subjects used')
+plt.xlim(1, max_outliers - 1)
+plt.xticks([1, 5, 10, 15, 19])
+figure.suptitle('impact of noisy subjects on mean ' + standard_measure,
+                fontweight='bold', fontsize=14)
 axes = plt.gca()
 axes.yaxis.tick_right()
 plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '

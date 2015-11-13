@@ -131,18 +131,21 @@ for measure, color in zip(measures, ['green', 'blue']):
         label = 'arithmetic mean'
     elif measure == 'robust dispersion':
         label = 'geometric mean'
-    plt.plot(np.arange(max_outliers + 1),
-             average_connectivity_errors[measure],
+    plt.plot(np.arange(max_outliers + 1)[1:-1],
+             average_connectivity_errors[measure][1:-1],
              label=label, color=color)
     axes = plt.gca()
     lower_bound = average_connectivity_errors[measure] -\
         std_connectivity_errors[measure]
     upper_bound = average_connectivity_errors[measure] +\
         std_connectivity_errors[measure]
-    axes.fill_between(np.arange(max_outliers + 1), lower_bound, upper_bound,
+    axes.fill_between(np.arange(max_outliers + 1)[1:-1], lower_bound[1:-1],
+                      upper_bound[1:-1],
                       facecolor=color, alpha=0.2)
 plt.rc('text', usetex=True)
 plt.xlabel('number of noisy subjects used')
+plt.xlim(1, max_outliers - 1)
+plt.xticks([1, 5, 10, 15, 19])
 axes = plt.gca()
 axes.yaxis.tick_right()
 plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '

@@ -41,7 +41,7 @@ motion = np.max(norm_displacement, axis=1)
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-standard_measure = 'correlation'
+standard_measure = 'covariance'
 measures = ["robust dispersion", standard_measure]
 
 # Compute errors in mean connectivities
@@ -132,20 +132,20 @@ for measure, color in zip(measures, ['red', 'blue']):
             label = 'corr(geometric mean)'
         else:
             label = 'geometric mean'
-    plt.plot(np.arange(min_subjects, max_subjects + 1, 2),
-             average_connectivity_errors[measure],
+    plt.plot(np.arange(min_subjects, max_subjects + 1, 2)[:-1],
+             average_connectivity_errors[measure][:-1],
              label=label, color=color)
     axes = plt.gca()
     lower_bound = average_connectivity_errors[measure] -\
         std_connectivity_errors[measure]
     upper_bound = average_connectivity_errors[measure] +\
         std_connectivity_errors[measure]
-    axes.fill_between(np.arange(min_subjects, max_subjects + 1, 2),
-                      lower_bound, upper_bound,
+    axes.fill_between(np.arange(min_subjects, max_subjects + 1, 2)[:-1],
+                      lower_bound[:-1], upper_bound[:-1],
                       facecolor=color, alpha=0.2)
 plt.rc('text', usetex=True)
-plt.xlim([min_subjects, max_subjects])
-plt.xlabel('number of subjects used')
+plt.xlim([min_subjects, max_subjects - 2])
+plt.xlabel('total number of subjects used')
 axes = plt.gca()
 axes.yaxis.tick_right()
 plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '

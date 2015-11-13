@@ -88,7 +88,7 @@ zero_diag = True
 n_inliers = 5
 n_outliers = 2
 n_subjects = len(subjects)
-for criteria in []:#features.keys():
+for criteria in features.keys():
     print(criteria)
     indices = np.argsort(features[criteria])
     inliers_indices = indices[:n_inliers]

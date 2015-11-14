@@ -61,6 +61,29 @@ def _compute_distance(matrix1, matrix2, distance_type='euclidean'):
     return distance
 
 
+def compute_pairwise_distances(matrices, distance_type='euclidean'):
+    """Computes the pairwise distances from each matrix to the others.
+
+    Parameters
+    ==========
+    matrices : numpy.ndarray, shape (n_matrices, n_features, n_features)
+        The input matrices.
+
+    Returns
+    =======
+    distance_matrix : numpy.ndarray, shape (n_matrices, n_matrices)
+        The pairwise distances.
+    """
+    n_matrices = matrices.shape[0]
+    matrix_distances = np.zeros((n_matrices, n_matrices))
+    # TODO: remove for loop
+    for i, j in zip(*np.triu_indices(n_matrices, 1)):
+        matrix_distances[i, j] = _compute_distance(matrices[i], matrices[j],
+                                                   distance_type=distance_type)
+    matrix_distances = matrix_distances + matrix_distances.T
+    return matrix_distances
+
+
 def _compute_variance(matrix, matrices):
     """Computes the average squared distance from one matrix to a list of
     matrices.

@@ -9,7 +9,8 @@ from nilearn.connectivity2.analyzing import (_compute_distance,
                                              _compute_variance,
                                              compute_spreading,
                                              split_sample,
-                                             assert_is_outlier)
+                                             assert_is_outlier,
+                                             compute_pairwise_distances)
 
 
 def test_compute_distance():
@@ -34,6 +35,27 @@ def test_compute_distance():
         np.linalg.norm(np.log([2., 3.])))
 
 
+def test_compute_pairwise_distances():
+    # Check diagonal is zero
+    matrix1 = np.array([[3., 1.], [1., 2.]])
+    matrix2 = np.array([[3., 0.], [0., 2.]])
+    for distance_type in ['euclidean', 'geometric']:
+        matrix_distances = compute_pairwise_distances(
+            np.array([matrix1, matrix2]), distance_type=distance_type)
+        assert_array_almost_equal(np.diag(matrix_distances), np.zeros((2,)))
+
+    # Scalar case
+    scalars = 1. + np.arange(3)
+    matrix_distances = {'euclidean': np.abs(scalars - scalars[:, np.newaxis]),
+                        'geometric': np.abs(np.log(
+                                        scalars / scalars[:, np.newaxis]))}
+    matrices = np.array([np.array([[s]]) for s in scalars])
+    for distance_type in ['euclidean', 'geometric']:
+        assert_array_almost_equal(
+            compute_pairwise_distances(matrices, distance_type=distance_type),
+            matrix_distances[distance_type])
+
+    
 def test_compute_variance():
     matrix = np.array([[3, 2], [2, 3]])
     assert_array_almost_equal(_compute_variance(matrix, np.array([matrix])),

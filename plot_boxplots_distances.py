@@ -45,264 +45,168 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-conditions = ['ReSt1_Placebo', 'ReSt2_Placebo']
+conditions = ['ReSt1_Placebo', 'Nbac2_Placebo', 'Nbac3_Placebo',
+              'ReSt2_Placebo']
 dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=conditions,
                                    standardize=False,
                                    networks=networks)
 # Estimate connectivity matrices
 import nilearn.connectivity
-covariances = {}
-correlations = {}
-partials = {}
+connectivities = {}
+measures = ['covariance', 'correlation', 'partial correlation']
 # TODO: factorize w.r.t. measures
 for condition in conditions:
-    subjects = dataset.time_series[condition]
-    cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-        kind='covariance')
-    covariances[condition] = cov_embedding.fit_transform(subjects)
-    cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-        kind='correlation')
-    correlations[condition] = cov_embedding.fit_transform(subjects)
-    cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-        kind='partial correlation')
-    partials[condition] = cov_embedding.fit_transform(subjects)
+    connectivities[condition] = {}
+    for measure in measures:
+        subjects = dataset.time_series[condition]
+        cov_embedding = nilearn.connectivity.ConnectivityMeasure(
+            kind=measure)
+        connectivities[condition][measure] = cov_embedding.fit_transform(
+            subjects)
 
 # Compute between subjects distances for each condition
 from nilearn.connectivity2 import analyzing
 inter_subjects_gdistances = {}
 inter_subjects_edistances = {}
-inter_subjects_corr_distances = {}
-inter_subjects_corr_gdistances = {}
-inter_subjects_part_distances = {}
-labels = {}
-colors_list = 'rgbkycm'
-from itertools import cycle
 for condition in conditions:
-    inter_subjects_gdistances[condition] = []
-    inter_subjects_edistances[condition] = []
-    inter_subjects_corr_distances[condition] = []
-    inter_subjects_corr_gdistances[condition] = []
-    inter_subjects_part_distances[condition] = []
-    labels = []
-    colors_scatter = []
-    cycle_color = cycle(colors_list)
-    # TODO: horrible, use np.triu_indices
-    for connectivity_id, connectivity in enumerate(
-            covariances[condition]):
-        u = cycle_color.next()
-        inter_subjects_gdistances[condition] += [analyzing._compute_distance(
-            conn, connectivity, distance_type='geometric') for conn in
-            covariances[condition][connectivity_id + 1:]]
-        inter_subjects_edistances[condition] += [analyzing._compute_distance(
-            conn, connectivity, distance_type='euclidean') for conn in
-            covariances[condition][connectivity_id + 1:]]
-        inter_subjects_corr_distances[condition] += [analyzing._compute_distance(
-            conn, connectivity, distance_type='euclidean') for conn in
-            correlations[condition][connectivity_id + 1:]]
-        inter_subjects_corr_gdistances[condition] += [analyzing._compute_distance(
-            conn, connectivity, distance_type='geometric') for conn in
-            correlations[condition][connectivity_id + 1:]]
-        inter_subjects_part_distances[condition] += [analyzing._compute_distance(
-            conn, connectivity, distance_type='euclidean') for conn in
-            partials[condition][connectivity_id + 1:]]
-        labels += [str(connectivity_id) + ',' + str(connectivity_id + 1 + n)
-                   for n, conn in enumerate(partials[condition][connectivity_id + 1:])]
-        colors_scatter += [u for conn in 
-                   partials[condition][connectivity_id + 1:]]
+    inter_subjects_edistances[condition] = {}
+    inter_subjects_gdistances[condition] = {}
+    for measure in measures:
+        edistances = analyzing.compute_pairwise_distances(
+            connectivities[condition][measure], distance_type='euclidean')
+        inter_subjects_edistances[condition][measure] = edistances[
+            np.triu(np.ones((40, 40)), 1).astype(np.bool)]
+        if measure != 'partial correlation':  # partial is not spd
+            gdistances = analyzing.compute_pairwise_distances(
+                connectivities[condition][measure], distance_type='geometric')
+            inter_subjects_gdistances[condition][measure] = gdistances[
+                np.triu(np.ones((40, 40)), 1).astype(np.bool)]
 
 # Compute between conditions distances
 from itertools import combinations
 conditions_pairs = list(combinations(conditions, 2))
 intra_subjects_gdistances = {}
 intra_subjects_edistances = {}
-intra_subjects_corr_distances = {}
-intra_subjects_corr_gdistances = {}
-intra_subjects_part_distances = {}
 for (condition1, condition2) in conditions_pairs:
-    intra_subjects_edistances[(condition1, condition2)] = [
-        analyzing._compute_distance(conn1, conn2, distance_type='euclidean')
-        for (conn1, conn2) in
-        zip(covariances[condition1], covariances[condition2])]
-    intra_subjects_gdistances[(condition1, condition2)] = [
-        analyzing._compute_distance(conn1, conn2, distance_type='geometric')
-        for (conn1, conn2) in
-        zip(covariances[condition1], covariances[condition2])]
-    intra_subjects_corr_distances[(condition1, condition2)] = [
-        analyzing._compute_distance(conn1, conn2, distance_type='euclidean')
-        for (conn1, conn2) in
-        zip(correlations[condition1], correlations[condition2])]
-    intra_subjects_corr_gdistances[(condition1, condition2)] = [
-        analyzing._compute_distance(conn1, conn2, distance_type='geometric')
-        for (conn1, conn2) in
-        zip(correlations[condition1], correlations[condition2])]
-    intra_subjects_part_distances[(condition1, condition2)] = [
-        analyzing._compute_distance(conn1, conn2, distance_type='euclidean')
-        for (conn1, conn2) in
-        zip(partials[condition1], partials[condition2])]
+    intra_subjects_gdistances[(condition1, condition2)] = {}
+    intra_subjects_edistances[(condition1, condition2)] = {}
+    for measure in measures:
+        intra_subjects_edistances[(condition1, condition2)][measure] = [
+            analyzing._compute_distance(c1, c2, distance_type='euclidean')
+            for (c1, c2) in zip(connectivities[condition1][measure],
+                                connectivities[condition2][measure])]
+        if measure != 'partial correlation':  # partial is not spd
+            intra_subjects_gdistances[(condition1, condition2)][measure] = [
+                analyzing._compute_distance(c1, c2, distance_type='geometric')
+                for (c1, c2) in zip(connectivities[condition1][measure],
+                                    connectivities[condition2][measure])]
 
 # Plot the boxplots
 fig = plt.figure(figsize=(5, 5.5))
-ax = plt.axes()
+ax1 = plt.axes()
 plt.hold(True)
-colors = ['blue', 'red', 'green']
-n_boxes = len(colors)
-medians = []
-boxplots_positions = []
+# To lighten boxplots, plot only one intrasubject condition
+pair_to_plot = ('ReSt1_Placebo', 'ReSt2_Placebo')
+conds_to_plot = ['ReSt1_Placebo', 'ReSt2_Placebo']
+n_boxes = len(conds_to_plot) + 1
+colors = ['blue', 'red', 'green', 'magenta', 'cyan'][:n_boxes]
+n_spaces = 3
 sym = '+'
-# euclidean
-distances = [inter_subjects_edistances[cond] for cond in conditions] +\
-    [intra_subjects_edistances[cond_pair] for cond_pair in conditions_pairs]
-medians += [np.median(distance) for distance in distances]
-positions = range(1, n_boxes + 1)
-boxplots_positions += positions
-bp = plt.boxplot(distances,
-                 positions=positions,
-                 widths=0.6,
-                 sym=sym)
-set_box_colors(bp, colors)
-
-# geometric
-distances = [inter_subjects_gdistances[cond] for cond in conditions] +\
-    [intra_subjects_gdistances[cond_pair] for cond_pair in conditions_pairs]
-medians += [np.median(distance) for distance in distances]
-positions = range(n_boxes + 3, 2 * n_boxes + 3)
-boxplots_positions += positions
-bp = plt.boxplot(distances,
-                 positions=positions,
-                 widths=0.6,
-                 sym=sym)
-set_box_colors(bp, colors)
-
-# correlations
-distances = [inter_subjects_corr_distances[cond] for cond in conditions] +\
-    [intra_subjects_corr_distances[cond_pair] for cond_pair in conditions_pairs]
-medians += [np.median(distance) for distance in distances]
-positions = range(2 * n_boxes + 5, 3 * n_boxes + 5)
-boxplots_positions += positions
-bp = plt.boxplot(distances,
-                 positions=positions,
-                 widths=0.6,
-                 sym=sym)
-set_box_colors(bp, colors)
-
-# geometric between correlations
-distances = [inter_subjects_corr_gdistances[cond] for cond in conditions] +\
-    [intra_subjects_corr_gdistances[cond_pair] for cond_pair in conditions_pairs]
-medians += [np.median(distance) for distance in distances]
-positions = range(3 * n_boxes + 7, 4 * n_boxes + 7)
-boxplots_positions += positions
-bp = plt.boxplot(distances,
-                 positions=positions,
-                 widths=0.6,
-                 sym=sym)
-set_box_colors(bp, colors)
-
-# Due to the Y-axis scale being different across samples, it can be
-# hard to compare differences in medians across the samples. Add upper
-# X-axis tick labels with the sample medians to aid in comparison
-# (just use two decimal places of precision)
-total_n_boxes = n_boxes * 4
-top = 17
-upperLabels = [str(np.round(s, 2)) for s in medians]
-from itertools import cycle
-boxColors = cycle(['b', 'r', 'g'])
-weights = ['bold', 'semibold']
-ypositions = cycle([.95 * top, .9 * top, .95 * top])
-for tick in range(total_n_boxes):
-    k = tick % 2
-    ax.text(boxplots_positions[tick], .95 * top, upperLabels[tick],
-            horizontalalignment='center', size=9, weight=weights[k],
-            color=boxColors.next(), rotation=45)
+widths = .6
+start_position = 1
+xticks = []
+xticks_labels = []
+for measure in ['covariance', 'correlation']:
+    edistances_to_plot = [
+        inter_subjects_edistances[cond][measure] for cond in conds_to_plot] +\
+        [intra_subjects_edistances[pair_to_plot][measure]]
+    gdistances_to_plot = [
+        inter_subjects_gdistances[cond][measure] for cond in conds_to_plot] +\
+        [intra_subjects_gdistances[pair_to_plot][measure]]
+    for (distance_type, distances_to_plot) in zip(['Euclidean', 'geometric'],
+                                                  [edistances_to_plot,
+                                                   gdistances_to_plot]):
+        positions = range(start_position, start_position + n_boxes)
+        xticks.append(.5 * positions[0] + .5 * positions[-1])
+        xticks_labels.append(distance_type + '\nbetween\n' + measure + 's')
+        # Plot euclidian between covariances on a seperate axis
+        # TODO: same axis but zoom
+        if measure == 'covariance' and distance_type == 'Euclidean':
+            ax = ax1.twinx()
+        else:
+            ax = ax1
+        bp = ax.boxplot(distances_to_plot,
+                        positions=positions,
+                        widths=widths,
+                        sym=sym)
+        set_box_colors(bp, colors)
+        start_position += n_boxes + n_spaces
 
 # set axes limits and labels
-plt.xlim(0, 4 * (n_boxes + 1) + 4)
-plt.ylim(0, top)
-ax.set_xticklabels(['', 'euclidean\nbetween\ncovariances', '',
-                    '', 'geometric\nbetween\ncovariances', '',
-                    '', 'euclidean\n between \ncorrelations', '',
-                    '', 'geometric\n between \ncorrelations', ''])
-#ax.set_xticks([.5 * (1 + n_boxes), .5 * (3 * n_boxes + 5),
-#               .5 * (5 * n_boxes + 9), .5 * (7 * n_boxes + 13)])
-ax.set_xticks(boxplots_positions)
+plt.xlim(0, start_position - n_spaces)
+ax.set_xticklabels(xticks_labels)
+ax.set_xticks(xticks)
 
+markers = [color[0] + '-' for color in colors]
 # draw temporary red and blue lines and use them to create a legend
-hB, = plt.plot([1, 1], 'b-')
-hR, = plt.plot([1, 1], 'r-')
-hG, = plt.plot([1, 1], 'g-')
-conditions_names = [cond.replace('_Placebo', '') for cond in conditions]
-plt.legend([hB, hR, hG], conditions_names + ['between\nconditions'],
-           loc='center left')
-hB.set_visible(False)
-hR.set_visible(False)
-hG.set_visible(False)
-plt.savefig('/home/sb238920/CODE/salma/figures/cov_corr_4_boxplots.pdf')
+lines = [plt.plot([1, 1], marker)[0] for marker in markers]
+conditions_names = []
+for condition in conds_to_plot:
+    condition_name = condition.replace('_Placebo', '')
+    condition_name = condition_name.replace('ReSt', 'rest ')
+    condition_name = condition_name.replace('Nbac2', '2-back')
+    condition_name = condition_name.replace('Nbac3', '3-back')
+    conditions_names.append(condition_name)
+# TODO: split legend
+plt.legend(lines, conditions_names + ['between\nconditions'],
+           loc='upper left')
+for line in lines:
+    line.set_visible(False)
+plt.savefig('/home/sb238920/CODE/salma/figures/cov_corr_{}_boxplots.pdf'
+            .format(n_boxes))
 
-# Plot the euclidean distance between partial boxplots
-fig = plt.figure(figsize=(5, 5.5))
-ax = plt.axes()
-plt.hold(True)
-colors = ['blue', 'red', 'green']
-n_boxes = len(colors)
-
-distances = [inter_subjects_part_distances[cond] for cond in conditions] +\
-    [intra_subjects_part_distances[cond_pair] for cond_pair in conditions_pairs]
-
-bp = plt.boxplot(distances,
-                 positions=range(1, n_boxes + 1),
-                 widths=0.6)
-set_box_colors(bp, colors)
-
-
-# set axes limits and labels
-plt.xlim(0, n_boxes + 1)
-ax.set_xticklabels(['euclidean\nbetween\npartial correlations'])
-ax.set_xticks([.5 * (1 + n_boxes)])
-
-# draw temporary red and blue lines and use them to create a legend
-hB, = plt.plot([1, 1], 'b-')
-hR, = plt.plot([1, 1], 'r-')
-hG, = plt.plot([1, 1], 'g-')
-conditions_names = [cond.replace('_Placebo', '') for cond in conditions]
-plt.legend([hB, hR, hG], conditions_names + ['between\nconditions'])
-hB.set_visible(False)
-hR.set_visible(False)
-hG.set_visible(False)
-plt.savefig('/home/sb238920/CODE/salma/figures/boxplots_euclidean_partials.pdf')
-plt.show()
-
-# Scatter plot inter-subject distances
-condition = conditions[0]
-plt.figure()
-from itertools import cycle
-#colors = cycle(['r', 'g', 'b', 'm', 'y'])
-#plt.scatter(inter_subjects_corr_distances[condition],
-#            inter_subjects_part_distances[condition])
-if False:
-    for label, x, y in zip(labels, inter_subjects_corr_distances[condition],
-                           inter_subjects_part_distances[condition]):
-        plt.annotate(
-            label, 
-            xy = (x, y), xytext = (-20, 20),
-            textcoords = 'offset points', ha = 'right', va = 'bottom',
-            bbox = dict(boxstyle = 'round,pad=0.5', fc = 'yellow', alpha = 0.5),
-            arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
-for color, x, y in zip(colors_scatter,
-                       inter_subjects_corr_distances[condition],
-                       inter_subjects_part_distances[condition]):
-    plt.plot(x, y, 'o' + color)
+# Scatter plots
+alpha = .5
+plt.figure(figsize=(5, 4))
+for color, condition, condition_name in zip(colors, conds_to_plot,
+                                            conditions_names):
+    plt.scatter(inter_subjects_edistances[condition]['correlation'],
+                inter_subjects_edistances[condition]['partial correlation'],
+                c=color, label=condition_name, alpha=alpha)
+plt.scatter(intra_subjects_edistances[pair_to_plot]['correlation'],
+            intra_subjects_edistances[pair_to_plot]['partial correlation'],
+            c=colors[-1], label='between conditions', alpha=alpha)
 plt.xlabel('euclidean distance between correlations')
 plt.ylabel('euclidean distance between partial correlations')
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_euclidean_rs1.pdf')
-plt.figure()
-plt.scatter(inter_subjects_corr_distances[condition],
-            inter_subjects_gdistances[condition])
+plt.legend()
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_euclidean_{}conds.'
+            'pdf'.format(n_boxes - 1))
+plt.figure(figsize=(5, 4))
+for color, condition, condition_name in zip(colors, conds_to_plot,
+                                            conditions_names):
+    plt.scatter(inter_subjects_edistances[condition]['correlation'],
+                inter_subjects_gdistances[condition]['covariance'],
+                c=color, label=condition_name, alpha=alpha)
+plt.scatter(intra_subjects_edistances[pair_to_plot]['correlation'],
+            intra_subjects_edistances[pair_to_plot]['covariance'],
+            c=colors[-1], label='between conditions', alpha=alpha)
 plt.xlabel('euclidean distance between correlations')
 plt.ylabel('geometric distance between covariances')
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_corr_rs1.pdf')
-plt.figure()
-plt.scatter(inter_subjects_part_distances[condition],
-            inter_subjects_gdistances[condition])
+plt.legend()
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_corr_{}conds.'
+            'pdf'.format(n_boxes - 1))
+plt.figure(figsize=(5, 4))
+for color, condition, condition_name in zip(colors, conds_to_plot,
+                                            conditions_names):
+    plt.scatter(inter_subjects_edistances[condition]['partial correlation'],
+                inter_subjects_gdistances[condition]['covariance'],
+                c=color, label=condition_name, alpha=alpha)
+plt.scatter(intra_subjects_edistances[pair_to_plot]['partial correlation'],
+            intra_subjects_edistances[pair_to_plot]['covariance'],
+            c=colors[-1], label='between conditions', alpha=alpha)
 plt.xlabel('euclidean distance between partial correlations')
 plt.ylabel('geometric distance between covariances')
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_part_rs1.pdf')
+plt.legend()
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_part_{}conds.'
+            'pdf'.format(n_boxes - 1))
 plt.show()

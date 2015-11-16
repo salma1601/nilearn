@@ -103,11 +103,11 @@ for (condition1, condition2) in conditions_pairs:
 
 # Plot the boxplots
 fig = plt.figure(figsize=(5, 5.5))
-ax1 = plt.axes()
+ax = plt.axes()
 plt.hold(True)
 # To lighten boxplots, plot only one intrasubject condition
 pair_to_plot = ('ReSt1_Placebo', 'ReSt2_Placebo')
-conds_to_plot = ['ReSt1_Placebo', 'Nbac3_Placebo', 'ReSt2_Placebo']
+conds_to_plot = ['ReSt1_Placebo', 'ReSt2_Placebo']
 n_boxes = len(conds_to_plot) + 1
 colors = ['blue', 'red', 'green', 'magenta', 'cyan'][:n_boxes]
 n_spaces = 7
@@ -137,10 +137,6 @@ for measure in ['covariance', 'correlation']:
         xticks_labels.append(distance_type + '\nbetween\n' + measure + 's')
         # Plot euclidian between covariances on a seperate axis
         # TODO: same axis but zoom
-        if measure == 'covariance' and distance_type == 'Euclidean':
-            ax = ax1  #.twinx()
-        else:
-            ax = ax1
         data += distances_to_plot
         bp = ax.boxplot(distances_to_plot,
                         positions=positions,
@@ -150,11 +146,10 @@ for measure in ['covariance', 'correlation']:
         start_position += n_boxes + n_spaces
 # set axes limits and labels
 plt.xlim(0, start_position - n_spaces)
-
 ax.set_xticklabels(xticks_labels)
 ax.set_xticks(xticks)
 ax.yaxis.tick_right()
-
+ax.set_ylabel('distance')
 conditions_names = []
 for condition in conds_to_plot:
     condition_name = condition.replace('_Placebo', '')
@@ -164,38 +159,27 @@ for condition in conds_to_plot:
     conditions_names.append(condition_name)
 markers = [color[0] + '-' for color in colors]
 # draw temporary red and blue lines and use them to create a legend
-lines = [plt.plot([1, 1], marker, label=label)[0] for marker, label in 
+lines = [plt.plot([1, 1], marker, label=label)[0] for marker, label in
          zip(markers, conditions_names + ['between\nconditions'])]
-# TODO: split legend
-#plt.legend(lines, conditions_names + ['between\nconditions'],
-#           loc='lower right')
-p5, = plt.plot([0], marker='None',
-           linestyle='None', label='dummy-tophead')
-p7, = plt.plot([0],  marker='None',
-           linestyle='None', label='dummy-empty')
-
-leg3 = plt.legend([p5, lines[-1], p7, p5] + [p5] + lines[:-1],
-              ['intra-subjects', 'between rest 1\nand rest 2', '', ''] + ['inter-subjects'] + conditions_names,
-              loc='lower right', ncol=2, prop={'size':10}) # Two columns, vertical group labels
-
-#leg4 = plt.legend([p5, p7, p5, p7, lines[-1]] + lines[:-1],
-#              ['intra-subject', '', 'inter-subjects', ''] + ['between\nconditions'] + conditions_names,
-#              loc=2, ncol=2) # Two columns, horizontal group labels
-
-#plt.gca().add_artist(leg3)
+p5, = plt.plot([0], marker='None', linestyle='None', label='dummy-tophead')
+p7, = plt.plot([0],  marker='None', linestyle='None', label='dummy-empty')
+plt.legend([p5, lines[-1], p7, p5, p5] + lines[:-1],
+           ['intra-subjects', 'between rest 1\nand rest 2', '', '',
+            'inter-subjects'] + conditions_names,
+           loc='lower right',
+           ncol=2, prop={'size': 10})  # vertical group labels
 for line in lines:
     line.set_visible(False)
 
 
 # Create the zoomed axes
-from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 zoom = 1
-#axins = zoomed_inset_axes(ax1, zoom, loc=6) # zoom = 3, location = 1 (upper right)
-axins = inset_axes(ax1, 1., zoom, loc=6) # zoom = 3, location = 1 (upper right)
+axins = inset_axes(ax, 1., zoom, loc=6)
 all_positions = np.array(all_positions, dtype=float)
-#all_positions[1] = 1 + 1. /float(zoom)
-#all_positions[2] = 2 + 1./ float(zoom)
+all_positions[1] /= zoom
+all_positions[2] /= zoom
 bp = axins.boxplot(data, widths=widths, sym=sym,
                    positions=all_positions)
 set_box_colors(bp, colors + colors + colors)
@@ -216,47 +200,63 @@ plt.savefig('/home/sb238920/CODE/salma/figures/cov_corr_{}_boxplots.pdf'
             .format(n_boxes))
 
 # Scatter plots
+import prettyplotlib as ppl
+
+# This is "import matplotlib.pyplot as plt" from the prettyplotlib library
+import matplotlib.pyplot as plt
 alpha = .5
-plt.subplots(1, 2, sharey=True, figsize=(5, 4))
+figure, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(5, 8))
 for color, condition, condition_name in zip(colors, conds_to_plot,
                                             conditions_names):
-    plt.scatter(inter_subjects_edistances[condition]['correlation'],
+    ppl.scatter(ax1,
+                inter_subjects_gdistances[condition]['covariance'],
+                inter_subjects_edistances[condition]['correlation'],
+                color=color, alpha=alpha)
+ppl.scatter(ax1, intra_subjects_gdistances[pair_to_plot]['covariance'],
+            intra_subjects_edistances[pair_to_plot]['correlation'],
+            color=colors[-1], alpha=alpha)
+p7, = ppl.plot([0],  marker='None', linestyle='None', label='inter-subjects')
+for color, condition, condition_name in zip(colors, conds_to_plot,
+                                            conditions_names):
+    ppl.scatter(ax2,
+                inter_subjects_gdistances[condition]['covariance'],
                 inter_subjects_edistances[condition]['partial correlation'],
-                c=color, label=condition_name, alpha=alpha)
-plt.scatter(intra_subjects_edistances[pair_to_plot]['correlation'],
+                color=color, label=condition_name, alpha=alpha)
+p5, = ppl.plot([0], marker='None', linestyle='None', label='intra-subjects')
+ppl.scatter(ax2,
+            intra_subjects_gdistances[pair_to_plot]['covariance'],
             intra_subjects_edistances[pair_to_plot]['partial correlation'],
-            c=colors[-1], label='between conditions', alpha=alpha)
+            color=colors[-1], label='between rest 1\nand rest 2', alpha=alpha)
+ax1.set_ylabel('euclidean distance between correlations')
+ax2.set_ylabel('euclidean distance between partial correlations')
+ax2.set_xlabel('geometric distance between covariances')
+
+# Create grouped legend
+plt.legend(loc='lower right',
+           ncol=2, prop={'size': 10})  # vertical group labels
+
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_{}conds.'
+            'pdf'.format(n_boxes - 1))
+figure, ax = plt.subplots(1, 1, figsize=(5, 4))
+scatters = []
+for color, condition, condition_name in zip(colors, conds_to_plot,
+                                            conditions_names):
+    scatters.append(plt.scatter(inter_subjects_edistances[condition]['correlation'],
+                inter_subjects_edistances[condition]['partial correlation'],
+                c=color, label=condition_name, alpha=alpha))
+scatters.append(plt.scatter(intra_subjects_edistances[pair_to_plot]['correlation'],
+            intra_subjects_edistances[pair_to_plot]['partial correlation'],
+            c=colors[-1], label='between conditions', alpha=alpha))
 plt.xlabel('euclidean distance between correlations')
 plt.ylabel('euclidean distance between partial correlations')
-plt.legend()
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_euclidean_{}conds.'
-            'pdf'.format(n_boxes - 1))
-plt.figure(figsize=(5, 4))
-for color, condition, condition_name in zip(colors, conds_to_plot,
-                                            conditions_names):
-    plt.scatter(inter_subjects_edistances[condition]['correlation'],
-                inter_subjects_gdistances[condition]['covariance'],
-                c=color, label=condition_name, alpha=alpha)
-plt.scatter(intra_subjects_edistances[pair_to_plot]['correlation'],
-            intra_subjects_edistances[pair_to_plot]['covariance'],
-            c=colors[-1], label='between conditions', alpha=alpha)
-plt.xlabel('euclidean distance between correlations')
-plt.ylabel('geometric distance between covariances')
-plt.legend()
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_corr_{}conds.'
-            'pdf'.format(n_boxes - 1))
-plt.figure(figsize=(5, 4))
-for color, condition, condition_name in zip(colors, conds_to_plot,
-                                            conditions_names):
-    plt.scatter(inter_subjects_edistances[condition]['partial correlation'],
-                inter_subjects_gdistances[condition]['covariance'],
-                c=color, label=condition_name, alpha=alpha)
-plt.scatter(intra_subjects_edistances[pair_to_plot]['partial correlation'],
-            intra_subjects_edistances[pair_to_plot]['covariance'],
-            c=colors[-1], label='between conditions', alpha=alpha)
-plt.xlabel('euclidean distance between partial correlations')
-plt.ylabel('geometric distance between covariances')
-plt.legend()
-plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_part_{}conds.'
+# Create grouped legend
+p5, = plt.plot([0], marker='None', linestyle='None', label='dummy-tophead')
+p7, = plt.plot([0],  marker='None', linestyle='None', label='dummy-empty')
+plt.legend([p5, scatters[-1], p7, p5, p5] + scatters[:-1],
+           ['intra-subjects', 'between rest 1\nand rest 2', '', '',
+            'inter-subjects'] + conditions_names,
+           loc='lower right',
+           ncol=2, prop={'size': 10})  # vertical group labels
+plt.savefig('/home/sb238920/CODE/salma/figures/scatter_corr_part_{}conds.'
             'pdf'.format(n_boxes - 1))
 plt.show()

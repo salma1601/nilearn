@@ -107,15 +107,17 @@ ax1 = plt.axes()
 plt.hold(True)
 # To lighten boxplots, plot only one intrasubject condition
 pair_to_plot = ('ReSt1_Placebo', 'ReSt2_Placebo')
-conds_to_plot = ['ReSt1_Placebo', 'ReSt2_Placebo']
+conds_to_plot = ['ReSt1_Placebo', 'Nbac3_Placebo', 'ReSt2_Placebo']
 n_boxes = len(conds_to_plot) + 1
 colors = ['blue', 'red', 'green', 'magenta', 'cyan'][:n_boxes]
-n_spaces = 3
+n_spaces = 7
 sym = '+'
 widths = .6
 start_position = 1
 xticks = []
 xticks_labels = []
+data = []
+all_positions = []
 for measure in ['covariance', 'correlation']:
     edistances_to_plot = [
         inter_subjects_edistances[cond][measure] for cond in conds_to_plot] +\
@@ -123,33 +125,36 @@ for measure in ['covariance', 'correlation']:
     gdistances_to_plot = [
         inter_subjects_gdistances[cond][measure] for cond in conds_to_plot] +\
         [intra_subjects_gdistances[pair_to_plot][measure]]
+    if measure == 'covariance':
+        all_distances = [edistances_to_plot, gdistances_to_plot]
+    else:
+        all_distances = [edistances_to_plot]
     for (distance_type, distances_to_plot) in zip(['Euclidean', 'geometric'],
-                                                  [edistances_to_plot,
-                                                   gdistances_to_plot]):
+                                                  all_distances):
         positions = range(start_position, start_position + n_boxes)
+        all_positions += positions
         xticks.append(.5 * positions[0] + .5 * positions[-1])
         xticks_labels.append(distance_type + '\nbetween\n' + measure + 's')
         # Plot euclidian between covariances on a seperate axis
         # TODO: same axis but zoom
         if measure == 'covariance' and distance_type == 'Euclidean':
-            ax = ax1.twinx()
+            ax = ax1  #.twinx()
         else:
             ax = ax1
+        data += distances_to_plot
         bp = ax.boxplot(distances_to_plot,
                         positions=positions,
                         widths=widths,
                         sym=sym)
         set_box_colors(bp, colors)
         start_position += n_boxes + n_spaces
-
 # set axes limits and labels
 plt.xlim(0, start_position - n_spaces)
+
 ax.set_xticklabels(xticks_labels)
 ax.set_xticks(xticks)
+ax.yaxis.tick_right()
 
-markers = [color[0] + '-' for color in colors]
-# draw temporary red and blue lines and use them to create a legend
-lines = [plt.plot([1, 1], marker)[0] for marker in markers]
 conditions_names = []
 for condition in conds_to_plot:
     condition_name = condition.replace('_Placebo', '')
@@ -157,17 +162,62 @@ for condition in conds_to_plot:
     condition_name = condition_name.replace('Nbac2', '2-back')
     condition_name = condition_name.replace('Nbac3', '3-back')
     conditions_names.append(condition_name)
+markers = [color[0] + '-' for color in colors]
+# draw temporary red and blue lines and use them to create a legend
+lines = [plt.plot([1, 1], marker, label=label)[0] for marker, label in 
+         zip(markers, conditions_names + ['between\nconditions'])]
 # TODO: split legend
-plt.legend(lines, conditions_names + ['between\nconditions'],
-           loc='upper left')
+#plt.legend(lines, conditions_names + ['between\nconditions'],
+#           loc='lower right')
+p5, = plt.plot([0], marker='None',
+           linestyle='None', label='dummy-tophead')
+p7, = plt.plot([0],  marker='None',
+           linestyle='None', label='dummy-empty')
+
+leg3 = plt.legend([p5, lines[-1], p7, p5] + [p5] + lines[:-1],
+              ['intra-subjects', 'between rest 1\nand rest 2', '', ''] + ['inter-subjects'] + conditions_names,
+              loc='lower right', ncol=2, prop={'size':10}) # Two columns, vertical group labels
+
+#leg4 = plt.legend([p5, p7, p5, p7, lines[-1]] + lines[:-1],
+#              ['intra-subject', '', 'inter-subjects', ''] + ['between\nconditions'] + conditions_names,
+#              loc=2, ncol=2) # Two columns, horizontal group labels
+
+#plt.gca().add_artist(leg3)
 for line in lines:
     line.set_visible(False)
+
+
+# Create the zoomed axes
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+zoom = 1
+#axins = zoomed_inset_axes(ax1, zoom, loc=6) # zoom = 3, location = 1 (upper right)
+axins = inset_axes(ax1, 1., zoom, loc=6) # zoom = 3, location = 1 (upper right)
+all_positions = np.array(all_positions, dtype=float)
+#all_positions[1] = 1 + 1. /float(zoom)
+#all_positions[2] = 2 + 1./ float(zoom)
+bp = axins.boxplot(data, widths=widths, sym=sym,
+                   positions=all_positions)
+set_box_colors(bp, colors + colors + colors)
+
+# sub region of the original image
+x1, x2, y1, y2 = 0.5, 4.5, .1, .75
+axins.set_xlim(x1, x2)
+axins.set_ylim(y1, y2)
+plt.xticks(visible=False)
+plt.yticks(visible=True)
+axins.yaxis.tick_right()
+
+# draw a bbox of the region of the inset axes in the parent axes and
+# connecting lines between the bbox and the inset axes area
+mark_inset(ax, axins, loc1=4, loc2=4, fc="none", ec="0.9")
+
 plt.savefig('/home/sb238920/CODE/salma/figures/cov_corr_{}_boxplots.pdf'
             .format(n_boxes))
 
 # Scatter plots
 alpha = .5
-plt.figure(figsize=(5, 4))
+plt.subplots(1, 2, sharey=True, figsize=(5, 4))
 for color, condition, condition_name in zip(colors, conds_to_plot,
                                             conditions_names):
     plt.scatter(inter_subjects_edistances[condition]['correlation'],

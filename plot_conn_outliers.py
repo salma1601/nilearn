@@ -85,8 +85,8 @@ features['determinant'] = determinant
 
 # Plot correlations and partial correlations matrices for inliers and outliers
 zero_diag = True
-n_inliers = 5
-n_outliers = 2
+n_inliers = 3
+n_outliers = 1
 n_subjects = len(subjects)
 for criteria in features.keys():
     print(criteria)
@@ -97,22 +97,60 @@ for criteria in features.keys():
     outliers = {}
     for measure in ['correlation', 'partial correlation']:
         inliers[measure] = subjects_connectivity[measure][inliers_indices]
-        titles = ['subject {}'.format(index + 1) for index in inliers_indices]
-        plot_matrices(inliers[measure], zero_diag=zero_diag, titles=titles,
-                      n_rows=2)
         outliers[measure] = subjects_connectivity[measure][outliers_indices]
-        titles = ['subject {}'.format(index + 1) for index in outliers_indices]
-        plot_matrices(outliers[measure], zero_diag=zero_diag, titles=titles)
+        titles = ['subject {}'.format(index) for index in
+                  np.hstack((outliers_indices, inliers_indices))]
+        xlabels = [np.round(features[criteria][index], 2) for index in
+                   np.hstack((outliers_indices, inliers_indices))]
+        cb_labels = [measure for index in
+                     np.hstack((outliers_indices, inliers_indices))]
+        figure = plt.figure(figsize=(10, 5))
+        plot_matrices(np.vstack((outliers[measure], inliers[measure])),
+                      figure=figure,
+                      zero_diag=zero_diag,
+                      titles=titles, n_rows=1,
+                      xlabels=xlabels,
+                      cb_labels=cb_labels)
+        distance_type = criteria
+        for old in ['squared', 'partial correlation', 'correlation']:
+            distance_type = distance_type.replace(old, '')
+        matrix_type = criteria
+        for old in ['squared', 'geometric', 'euclidean']:
+            matrix_type = matrix_type.replace(old, '')
+        if 'geometric' in criteria:
+            suptitle = 'outlier according to ' + distance_type +\
+                       'distance'
+        else:
+            suptitle = 'outlier according to ' + distance_type +\
+                       'distance between' + matrix_type
+#        figure.suptitle(suptitle,
+#                        fontsize=14, fontweight='bold')
+        measure_name = measure.replace('partial correlation', 'partial')
+        criteria_name = criteria
+        for old, new in zip(['euclidean', 'geometric', 'squared',
+                             'partial correlation', 'correlation', ' '],
+                            ['euc', 'geo', 'sq', 'part', 'corr', '_']):
+            criteria_name = criteria_name.replace(old, new)
+        plt.savefig('/home/sb238920/CODE/salma/figures/outliers_{0}_{1}_rs1'
+                    '.pdf'.format(measure_name, criteria_name))
 
-    # Plot correlations and partial correlations connectivity graphs for
-    # inliers and outliers
-    from nilearn import plotting
-    labels, region_coords = zip(*dataset.rois)
-    node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for
-                  label in labels]
-    display_mode = 'z'
-    edge_threshold = '95%'
-    for measure in ['correlation', 'partial correlation']:
+# Plot correlations and partial correlations connectivity graphs for
+# inliers and outliers
+from nilearn import plotting
+labels, region_coords = zip(*dataset.rois)
+node_color = ['g' if label in DMN else 'k' if label in WMN else 'm' for
+              label in labels]
+display_mode = 'z'
+edge_threshold = '90%'
+for criteria in []:
+    indices = np.argsort(features[criteria])
+    inliers_indices = indices[:n_inliers]
+    outliers_indices = indices[n_subjects - n_outliers:]
+    inliers = {}
+    outliers = {}
+    for measure in ['correlation', 'partial correlation', 'covariance']:
+        inliers[measure] = subjects_connectivity[measure][inliers_indices]
+        outliers[measure] = subjects_connectivity[measure][outliers_indices]
         for n, inlier in enumerate(inliers[measure]):
             plotting.plot_connectome(
                 inlier,
@@ -125,7 +163,7 @@ for criteria in features.keys():
                         '.pdf'.format(measure, n))
         for n, outlier in enumerate(outliers[measure]):
             plotting.plot_connectome(
-                inlier,
+                outlier,
                 region_coords,
                 node_color=node_color,
                 edge_threshold=edge_threshold,

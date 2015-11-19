@@ -107,7 +107,7 @@ ax = plt.axes()
 plt.hold(True)
 # To lighten boxplots, plot only one intrasubject condition
 pair_to_plot = ('ReSt1_Placebo', 'ReSt2_Placebo')
-conds_to_plot = ['ReSt1_Placebo', 'ReSt2_Placebo']
+conds_to_plot = ['ReSt1_Placebo', 'Nbac3_Placebo', 'ReSt2_Placebo']
 n_boxes = len(conds_to_plot) + 1
 colors = ['blue', 'red', 'green', 'magenta', 'cyan'][:n_boxes]
 n_spaces = 7
@@ -163,14 +163,13 @@ lines = [plt.plot([1, 1], marker, label=label)[0] for marker, label in
          zip(markers, conditions_names + ['between\nconditions'])]
 p5, = plt.plot([0], marker='None', linestyle='None', label='dummy-tophead')
 p7, = plt.plot([0],  marker='None', linestyle='None', label='dummy-empty')
-plt.legend([p5, lines[-1], p7, p5, p5] + lines[:-1],
-           ['intra-subjects', 'between rest 1\nand rest 2', '', '',
-            'inter-subjects'] + conditions_names,
+plt.legend([p5] + lines[:-1] + [p5, lines[-1], p7, p5],
+           ['inter-subjects'] + conditions_names +
+           ['intra-subjects', 'between rest 1\nand rest 2', '', ''],
            loc='lower right',
            ncol=2, prop={'size': 10})  # vertical group labels
 for line in lines:
     line.set_visible(False)
-
 
 # Create the zoomed axes
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -211,30 +210,59 @@ for color, condition, condition_name in zip(colors, conds_to_plot,
     ppl.scatter(ax1,
                 inter_subjects_gdistances[condition]['covariance'],
                 inter_subjects_edistances[condition]['correlation'],
-                color=color, alpha=alpha)
+                color=color)
 ppl.scatter(ax1, intra_subjects_gdistances[pair_to_plot]['covariance'],
             intra_subjects_edistances[pair_to_plot]['correlation'],
-            color=colors[-1], alpha=alpha)
+            color=colors[-1])
 p7, = ppl.plot([0],  marker='None', linestyle='None', label='inter-subjects')
+
+for n_tasks_to_plot in range(len(conditions_names) - 2):
+    ppl.plot([0],  marker='None', linestyle='None', label=' ')
+
 for color, condition, condition_name in zip(colors, conds_to_plot,
                                             conditions_names):
     ppl.scatter(ax2,
                 inter_subjects_gdistances[condition]['covariance'],
                 inter_subjects_edistances[condition]['partial correlation'],
-                color=color, label=condition_name, alpha=alpha)
+                color=color, label=condition_name)
 p5, = ppl.plot([0], marker='None', linestyle='None', label='intra-subjects')
 ppl.scatter(ax2,
             intra_subjects_gdistances[pair_to_plot]['covariance'],
             intra_subjects_edistances[pair_to_plot]['partial correlation'],
-            color=colors[-1], label='between rest 1\nand rest 2', alpha=alpha)
+            color=colors[-1], label='between rest 1\nand rest 2')
 ax1.set_ylabel('euclidean distance between correlations')
 ax2.set_ylabel('euclidean distance between partial correlations')
 ax2.set_xlabel('geometric distance between covariances')
 
 # Create grouped legend
-plt.legend(loc='lower right',
+handles, labels = ax2.get_legend_handles_labels()
+def sorting_function(tup):
+    label, _ =tup
+    if label == 'inter-subjects':
+        order = 'a'
+    elif label == 'rest 1':
+        order = 'b'
+    elif label == '2-back':
+        order = 'c'
+    elif label == '3-back':
+        order = 'd'
+    elif label == 'rest 2':
+        order = 'e'
+    elif label == 'intra-subjects':
+        order = 'f'
+    elif label == 'between rest 1\nand rest 2':
+        order = 'g'
+    elif label == ' ':
+        order = 'h'
+    else:
+        order = label[0]
+    return order
+    
+labels, handles = zip(*sorted(zip(labels, handles), key=lambda t:sorting_function(t)))
+#labels, handles = [(label, handle) for label in ['inter-subjects', 'intra-subjects', 'rest 1', 'rest 2', 'between rest 1\nand rest 2']
+plt.legend(handles, labels, loc='lower center',
            ncol=2, prop={'size': 10})  # vertical group labels
-
+plt.xlim(0, 6)
 plt.savefig('/home/sb238920/CODE/salma/figures/scatter_geo_{}conds.'
             'pdf'.format(n_boxes - 1))
 figure, ax = plt.subplots(1, 1, figsize=(5, 4))

@@ -159,7 +159,7 @@ def _compute_geo_std(matrix, matrices):
     matrix_inv_sqrt = _form_symmetric(np.sqrt, 1. / vals, vecs)
     whitened_matrices = [_map_eigenvalues(
         np.log, matrix_inv_sqrt.dot(m).dot(matrix_inv_sqrt)) for m in matrices]
-    distances = [np.linalg.norm(w) ** 2 for w in whitened_matrices]
+    distances = [np.linalg.norm(w) for w in whitened_matrices]
     return np.mean(distances)
 
 
@@ -234,7 +234,7 @@ def compute_geo_spreading(matrices):
 
 
 def compute_geo_std_spreading(matrices):
-    """Computes the average squared geometric distance from each matrix to the
+    """Computes the average geometric distance from each matrix to the
     others.
 
     Parameters

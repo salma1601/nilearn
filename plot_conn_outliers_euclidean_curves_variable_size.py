@@ -123,7 +123,7 @@ for measure in measures:
         np.array(std_connectivity_errors[measure])
 
 # Plot the errors
-plt.figure(figsize=(5, 4.5))
+figure = plt.figure(figsize=(5, 4.5))
 for measure, color in zip(measures, ['red', 'blue']):
     if measure == standard_measure:
         label = 'arithmetic mean'
@@ -143,6 +143,8 @@ for measure, color in zip(measures, ['red', 'blue']):
     axes.fill_between(np.arange(min_subjects, max_subjects + 1, 2)[:-1],
                       lower_bound[:-1], upper_bound[:-1],
                       facecolor=color, alpha=0.2)
+figure.suptitle('impact of noisiest half subjects on mean ' + standard_measure,
+                fontweight='bold', fontsize=14)
 plt.rc('text', usetex=True)
 plt.xlim([min_subjects, max_subjects - 2])
 plt.xlabel('total number of subjects used')

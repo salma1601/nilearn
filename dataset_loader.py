@@ -13,7 +13,8 @@ from my_conn import MyConn
 
 
 def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
-              networks=None):
+              networks=None, files_pattern='results/preprocessing/'
+              'ROI_Subject%03d_Condition%03d.mat'):
     """Return preprocessed times series, motion parameters and regions labels
     and coordinates from a specified conn project.
 
@@ -78,7 +79,7 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
 
     # Run the pipeline
     mc.setup()
-    mc.analysis(networks, standardize, 'correlations')
+    mc.analysis(networks, standardize, files_pattern, 'correlations')
     time_series = {}
     motion = {}
     for condition in conditions:
@@ -89,7 +90,8 @@ def load_conn(conn_folder, conditions=['ReSt1_Placebo'], standardize=False,
 
         subjects = mc.runs_[condition]
         if standardize:
-            subjects = [signal / signal.std(axis=1)[:, np.newaxis] for signal in subjects]
+            subjects = [signal / signal.std(axis=1)[:, np.newaxis] for signal
+                        in subjects]
 
         time_series[condition] = subjects
         n_subjects = len(time_series[condition])

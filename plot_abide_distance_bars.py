@@ -6,30 +6,10 @@ the maximal eigenvalue
 import numpy as np
 import matplotlib.pylab as plt
 
-import dataset_loader
-# Specify the networks
-WMN = ['IPL', 'LMFG_peak1',
-       'RCPL_peak1', 'LCPL_peak3', 'LT']
-AN = ['vIPS.cluster001', 'vIPS.cluster002',
-      'pIPS.cluster001', 'pIPS.cluster002',
-      'MT.cluster001', 'MT.cluster002',
-      'FEF.cluster002', 'FEF.cluster001']
-DMN = ['RTPJ', 'RDLPFC', 'AG.cluster001', 'AG.cluster002',
-       'SFG.cluster001', 'SFG.cluster002',
-       'PCC', 'MPFC', 'FP']
-networks = [('WMN', WMN), ('AN', AN), ('DMN', DMN)]
-
-# Specify the location of the  CONN project
-conn_folders = np.genfromtxt(
-    '/home/sb238920/CODE/anonymisation/conn_projects_paths.txt', dtype=str)
-conn_folder_filt = conn_folders[0]
-conn_folder_no_filt = conn_folders[1]
-
-condition = 'ReSt1_Placebo'
-dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
-                                   standardize=False,
-                                   networks=networks)
-subjects = dataset.time_series[condition]
+# Load preprocessed abide timeseries extracted from harvard oxford atlas
+from nilearn import datasets
+abide = datasets.fetch_abide_pcp(derivatives=['rois_ho'], DX_GROUP=2)
+subjects = abide.rois_ho
 
 # Estimate connectivity matrices
 from sklearn.covariance import EmpiricalCovariance, LedoitWolf
@@ -37,12 +17,16 @@ import nilearn.connectivity
 measures = ["covariance", "robust dispersion"]
 
 # Compute mean connectivity for low moving subjects
+from joblib import Memory
+mem = Memory('/home/sb238920/CODE/Parietal/nilearn/nilearn_cache/abide')
 mean_connectivity = {}
 subjects_connectivity = {}
 for measure in measures + ['correlation']:
+    # TODO: cache cov_embedding
     cov_embedding = nilearn.connectivity.ConnectivityMeasure(
-        kind=measure, cov_estimator=EmpiricalCovariance())
-    subjects_connectivity[measure] = cov_embedding.fit_transform(subjects)
+        kind=measure, cov_estimator=LedoitWolf())
+    subjects_connectivity[measure] = cov_embedding.fit_transform(subjects,
+                                                                 mem=mem)
     if measure == 'robust dispersion':
         mean_connectivity[measure] = cov_embedding.robust_mean_
     else:
@@ -54,11 +38,11 @@ from nilearn.connectivity2 import analyzing
 standard_distances = {}
 robust_distances = {}
 for distance_type in ['euclidean', 'geometric']:
-    standard_distances[distance_type] = [analyzing._compute_distance(
+    standard_distances[distance_type] = [mem.cache(analyzing._compute_distance)(
         mean_connectivity['covariance'], subject_connectivity,
         distance_type=distance_type)
         for subject_connectivity in subjects_connectivity['covariance']]
-    robust_distances[distance_type] = [analyzing._compute_distance(
+    robust_distances[distance_type] = [mem.cache(analyzing._compute_distance)(
         mean_connectivity['robust dispersion'], subject_connectivity,
         distance_type=distance_type)
         for subject_connectivity in subjects_connectivity['covariance']]
@@ -82,21 +66,10 @@ for distance_type in ['euclidean', 'geometric']:
 
 # Define the outliers : far away from the others
 from nilearn.connectivity2 import analyzing
-spreading_euc = analyzing.compute_spreading(
+spreading_euc = mem.cache(analyzing.compute_spreading)(
     subjects_connectivity['correlation'])
-spreading_geo = analyzing.compute_geo_spreading(
+spreading_geo = mem.cache(analyzing.compute_geo_spreading)(
     subjects_connectivity['correlation'])
-
-displacement = np.diff(dataset.motion[condition], axis=1)
-norm_displacement = np.linalg.norm(displacement[..., :3], axis=-1)
-motion = np.max(norm_displacement, axis=1)
-for spreading, distance_type in zip([spreading_euc, spreading_geo],
-                                    ['euclidean', 'geometric']):
-    # Relate feature and average squared distance to the rest of subjects
-    plt.figure(figsize=(5, 4.5))
-    plt.scatter(np.log10(feature[distance_type]), motion)  #spreading
-    plt.xlabel('covariance {}'.format(feature_name[distance_type]))
-    plt.ylabel('average {} distance'.format(distance_type))
 
 
 # Plot the bars of distances
@@ -112,14 +85,16 @@ for distance_type in ['euclidean', 'geometric']:
                 distances,
                 width=.7,
                 label=label,
+                edgecolor=color,
                 color=color,
                 alpha=.3)
     plt.xlabel('subject rank, sorted by covariance {}'
                .format(feature_name[distance_type]))
+    plt.xlim(0, len(subjects))
     axes = plt.gca()
     axes.yaxis.tick_right()
     plt.ylabel('{} distance to means'.format(distance_type))
-    plt.legend(loc='lower right')
-    plt.savefig('/home/sb238920/CODE/salma/figures/{}_distance_bars_rs1.pdf'
-                .format(distance_type))
+    plt.legend(loc='higher center')
+#    plt.savefig('/home/sb238920/CODE/salma/figures/abide_normalized_{}_distance_bars_rs1.pdf'
+#                .format(distance_type))
 plt.show()

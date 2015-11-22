@@ -249,7 +249,7 @@ def _prec_to_partial(precision):
     np.fill_diagonal(partial_correlation, 1.)
     return partial_correlation
 
-
+from joblib import Memory
 class ConnectivityMeasure(BaseEstimator, TransformerMixin):
     """A class that computes different kinds of functional connectivity
     matrices.
@@ -286,7 +286,7 @@ class ConnectivityMeasure(BaseEstimator, TransformerMixin):
         self.cov_estimator = cov_estimator
         self.kind = kind
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, mem=None):
         """Fit the covariance estimator to the given time series for each
         subject.
 
@@ -301,10 +301,13 @@ class ConnectivityMeasure(BaseEstimator, TransformerMixin):
             The object itself. Useful for chaining operations.
         """
         self.cov_estimator_ = clone(self.cov_estimator)
+        if mem is None:
+            mem = Memory(None)
 
         if self.kind == 'robust dispersion':
             covariances = [self.cov_estimator_.fit(x).covariance_ for x in X]
-            self.robust_mean_ = _geometric_mean(covariances, max_iter=30,
+            self.robust_mean_ = mem.cache(_geometric_mean)(covariances,
+                                                max_iter=30,
                                                 tol=1e-9)
             self.whitening_ = _map_eigenvalues(lambda x: 1. / np.sqrt(x),
                                                self.robust_mean_)

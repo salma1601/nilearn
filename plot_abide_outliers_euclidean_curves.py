@@ -21,7 +21,7 @@ max_eigenvalues = [np.linalg.eigvalsh(subject_connectivity).max() for
 indices_eig = np.argsort(max_eigenvalues)
 subjects = np.array(subjects)[indices_eig]
 n_subjects = len(subjects)
-n_inliers = n_subjects / 2
+n_inliers = n_subjects / 4
 max_outliers = n_subjects - n_inliers
 low_motion_subjects = subjects[:n_inliers]
 high_motion_subjects = subjects[n_inliers:]
@@ -46,8 +46,8 @@ average_connectivity_errors = {}
 std_connectivity_errors = {}
 connectivity_errors = {}
 
-max_combinations = 10
-step = 40
+max_combinations = 5
+step = 80
 from sklearn import cross_validation
 for measure in measures:
     average_connectivity_errors[measure] = []
@@ -138,7 +138,7 @@ plt.ylabel('euclidean distance between mean of all subjects and\narithmetic '
            'mean of non-noisy subjects')
 plt.legend(loc='lower right')
 if standard_measure == "correlation":
-    plt.savefig('/home/sb238920/CODE/salma/figures/abide_euclidean_corr_curves.pdf')
+    plt.savefig('/home/sb238920/CODE/salma/figures/abide_euclidean_corr_curves2.pdf')
 else:
-    plt.savefig('/home/sb238920/CODE/salma/figures/abide_euclidean_curves.pdf')
+    plt.savefig('/home/sb238920/CODE/salma/figures/abide_euclidean_curves2.pdf')
 plt.show()

@@ -190,3 +190,30 @@ plt.scatter(features['euclidean correlation'],
 plt.xlabel('euclidean correlation')
 plt.ylabel('euclidean partial correlation')
 plt.show()
+
+#Try relate some motion parameters or variance to eigenvalues
+mvt_parameters = np.asarray(dataset.motion[condition])
+displacements = np.diff(dataset.motion[condition])
+norm_translation = np.linalg.norm(mvt_parameters[..., :3], axis=-1)
+norm_translation_disp = np.linalg.norm(displacements[..., :3], axis=-1)
+norm_rotation = np.linalg.norm(mvt_parameters[..., 3:], axis=-1)
+norm_rotation_disp = np.linalg.norm(displacements[..., 3:], axis=-1)
+motion = np.max(norm_translation_disp, axis=1)
+motion = np.median(norm_translation, axis=1)
+labels = ['sub ' + str(n) for n in range(40)]
+
+for n_plot, feature_name in enumerate(['geometric', 'euclidean correlation',
+                                  'euclidean partial correlation']):
+    plt.subplot(3, 1, n_plot + 1)
+    plt.plot(motion, features[feature_name], '.')
+    plt.ylabel(feature_name)
+    for label, x, y in zip(labels, motion, features[feature_name]):
+        p = plt.annotate(
+            label, 
+            xy = (x, y), xytext = (-20, 20),
+            textcoords = 'offset points', ha = 'right', va = 'bottom',
+            bbox = dict(boxstyle = 'round,pad=0.1', fc = 'yellow', alpha = 0.5),
+            arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
+
+plt.xlabel('motion')
+plt.show()

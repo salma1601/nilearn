@@ -70,7 +70,7 @@ feature_name = {'euclidean': 'maximal eigenvalue',
 feature['euclidean'] = [np.linalg.eigvalsh(subject_connectivity).max() for
                         subject_connectivity in
                         subjects_connectivity['covariance']]
-feature['geometric'] = [(np.linalg.eigvalsh(subject_connectivity) * 1.).prod()
+feature['geometric'] = [(np.linalg.eigvalsh(subject_connectivity)).prod()
                         for subject_connectivity in
                         subjects_connectivity['covariance']]
 for distance_type in ['euclidean', 'geometric']:

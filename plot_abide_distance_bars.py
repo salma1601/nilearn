@@ -9,10 +9,20 @@ import matplotlib.pylab as plt
 # Load preprocessed abide timeseries extracted from harvard oxford atlas
 from nilearn import datasets
 abide = datasets.fetch_abide_pcp(derivatives=['rois_ho'], DX_GROUP=2)
-subjects = abide.rois_ho
+subjects_unscaled = abide.rois_ho
+
+# Standardize the signals
+scaling_type = 'normalized'
+from nilearn import signal
+if scaling_type == 'normalized':
+    subjects = []
+    for subject in subjects_unscaled:
+        subjects.append(signal._standardize(subject))
+else:
+    subjects = subjects_unscaled
 
 # Estimate connectivity matrices
-from sklearn.covariance import EmpiricalCovariance, LedoitWolf
+from sklearn.covariance import LedoitWolf
 import nilearn.connectivity
 measures = ["covariance", "robust dispersion"]
 
@@ -71,7 +81,6 @@ spreading_euc = mem.cache(analyzing.compute_spreading)(
 spreading_geo = mem.cache(analyzing.compute_geo_spreading)(
     subjects_connectivity['correlation'])
 
-
 # Plot the bars of distances
 for distance_type in ['euclidean', 'geometric']:
     plt.figure(figsize=(5, 4.5))
@@ -94,7 +103,8 @@ for distance_type in ['euclidean', 'geometric']:
     axes = plt.gca()
     axes.yaxis.tick_right()
     plt.ylabel('{} distance to means'.format(distance_type))
-    plt.legend(loc='higher center')
-#    plt.savefig('/home/sb238920/CODE/salma/figures/abide_normalized_{}_distance_bars_rs1.pdf'
-#                .format(distance_type))
+    plt.legend(loc='upper center')
+    figure_name = 'abide_{0}_{1}_distance_bars_rs1.pdf'.format(scaling_type,
+                                                               distance_type)
+    plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
 plt.show()

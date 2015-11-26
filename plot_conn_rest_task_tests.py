@@ -26,7 +26,7 @@ conn_folders = np.genfromtxt(
 conn_folder_filt = conn_folders[0]
 conn_folder_no_filt = conn_folders[1]
 
-conditions = ['ReSt1_Placebo', 'Nbac2_Placebo']
+conditions = ['Nbac3_Placebo', 'Nbac3_Drug']
 dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=conditions,
                                    standardize=False,
                                    networks=networks)

@@ -6,7 +6,6 @@ distances for
 import numpy as np
 import matplotlib.pylab as plt
 
-
 # function for setting the colors of the box plots pairs
 def set_box_colors(boxplot, colors=['blue']):
     n_boxplots = len(boxplot['boxes'])
@@ -89,7 +88,7 @@ for (condition1, condition2) in conditions_pairs:
                 connectivities[condition2][measure]]
 
 # Plot the boxplots
-fig = plt.figure(figsize=(4.5, 3.5))
+fig = plt.figure(figsize=(5.2, 5.5))
 ax1 = plt.axes()
 plt.hold(True)
 # To lighten boxplots, plot only one intrasubject condition
@@ -112,17 +111,17 @@ for measure in ['covariance', 'correlation']:
     gdistances_to_plot = [
         inter_subjects_gdistances[cond][measure] for cond in conds_to_plot] +\
         [intra_subjects_gdistances[pair_to_plot][measure]]
-    all_distances = [gdistances_to_plot]
-    for (distance_type, distances_to_plot) in zip(['geometric', 'Euclidean'],
+    all_distances = [edistances_to_plot, gdistances_to_plot]
+    for (distance_type, distances_to_plot) in zip(['Euclidean', 'geometric'],
                                                   all_distances):
         positions = range(start_position, start_position + n_boxes)
         all_positions += positions
         xticks.append(.5 * positions[0] + .5 * positions[-1])
-        xticks_labels.append(measure + 's')
+        xticks_labels.append(distance_type + '\nbetween\n' + measure + 's')
         # Plot euclidian between covariances on a seperate axis
         # TODO: same axis but zoom
         data += distances_to_plot
-        if measure == 'covariance':
+        if measure == 'covariance' and distance_type == 'Euclidean':
             import matplotlib.ticker as mtick
             ax = ax1.twinx()
             ax.yaxis.tick_left()
@@ -132,6 +131,7 @@ for measure in ['covariance', 'correlation']:
             offset = ax.get_xaxis().get_offset_text()
             ax.set_xlabel('{0} {1}'.format(ax.get_xlabel(), offset.get_text()))
             offset.set_visible(False)
+            ax.set_ylim(0, 1400000)
         else:
             ax = ax1
             ax.yaxis.tick_right()
@@ -141,8 +141,10 @@ for measure in ['covariance', 'correlation']:
                         sym=sym)
         set_box_colors(bp, colors)
         start_position += n_boxes + n_spaces
+
 # set axes limits and labels
 plt.xlim(0, start_position - n_spaces)
+ax.set_ylim(0, 80)
 ax.set_xticklabels(xticks_labels)
 ax.set_xticks(xticks)
 conditions_names = []
@@ -162,11 +164,11 @@ plt.legend([p5] + lines[:-1] + [p7, lines[-1]],
            ['intra-classes'] + conditions_names +
            ['inter-classes', 'between controls\nand autists'],
            loc='upper center',
-           ncol=2, prop={'size': 7.5})  # vertical group labels
+           ncol=2, prop={'size': 12})  # vertical group labels
 for line in lines:
     line.set_visible(False)
 
-fig.suptitle('Euclidean distances')
+fig.suptitle('Pairwise distances between subjects')
 plt.savefig('/home/sb238920/CODE/salma/figures/abide_cov_corr_{}_boxplots.pdf'
             .format(n_boxes))
 

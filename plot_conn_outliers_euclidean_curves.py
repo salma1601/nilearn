@@ -55,7 +55,7 @@ high_motion_subjects = subjects[n_inliers:]
 
 # Estimate evolution of connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
-standard_measure = 'covariance'
+standard_measure = 'correlation'
 measures = ["robust dispersion", standard_measure]
 
 # Compute mean connectivity for low moving subjects
@@ -136,7 +136,7 @@ for measure, color in zip(measures, ['red', 'blue']):
         label = 'arithmetic mean'
     elif measure == 'robust dispersion':
         if standard_measure == 'correlation':
-            label = 'corr(geometric mean)'
+            label = 'normalized geometric mean'
         else:
             label = 'geometric mean'
     plt.plot(np.arange(max_outliers + 1)[1:-1],

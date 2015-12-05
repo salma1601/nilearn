@@ -13,22 +13,30 @@ conditions = ['control', 'autist']
 
 
 # Estimate connectivity matrices
-from sklearn.covariance import EmpiricalCovariance
 import nilearn.connectivity
 n_controls = len(time_series['control'])
 n_autists = len(time_series['autist'])
 mean_matrices = []
 all_matrices = []
-measures = ["robust dispersion", "correlation", "partial correlation", "covariance",
-            "precision"]
-subjects = [subj for condition in conditions for subj in
-            time_series[condition]]
+measures = ["correlation", "robust dispersion", "partial correlation"]
+subjects_unscaled = [subj for condition in conditions for subj in
+                     time_series[condition]]
+# Standardize the signals
+scaling_type = 'normalized'
+from nilearn import signal
+if scaling_type == 'normalized':
+    subjects = []
+    for subject in subjects_unscaled:
+        subjects.append(signal._standardize(subject))
+else:
+    subjects = subjects_unscaled
+
 subjects_connectivity = {}
 mean_connectivity = {}
 from joblib import Memory
 mem = Memory('/home/sb238920/CODE/Parietal/nilearn/nilearn_cache/abide')
 from sklearn.covariance import LedoitWolf
-for measure in measures:
+for measure in ['correlation', 'partial correlation']:
     cov_embedding = nilearn.connectivity.ConnectivityMeasure(
         kind=measure, cov_estimator=LedoitWolf())
     subjects_connectivity[measure] = cov_embedding.fit_transform(subjects,
@@ -39,6 +47,12 @@ for measure in measures:
     else:
         mean_connectivity[measure] = \
             subjects_connectivity[measure].mean(axis=0)
+
+tangent_embedding = nilearn.connectivity.ConnectivityMeasure(
+    kind='robust dispersion', cov_estimator=LedoitWolf())
+subjects_connectivity['robust dispersion'] = tangent_embedding.fit_transform(subjects,
+                                                             mem=mem)
+mean_connectivity['robust dispersion'] = tangent_embedding.robust_mean_
 
 # Plot the mean connectivity
 import nilearn.plotting
@@ -65,19 +79,26 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import RidgeClassifier
 from sklearn.lda import LDA
 from sklearn.cross_validation import StratifiedShuffleSplit, cross_val_score
-classifiers = [LinearSVC(), KNeighborsClassifier(n_neighbors=1), LDA(),
-               LogisticRegression(), GaussianNB(), RidgeClassifier()]
-classifier_names = ['SVM', 'KNN', 'LDA', 'logistic', 'GNB', 'ridge']
+classifiers = [LinearSVC(random_state=1), LDA(),
+               LogisticRegression(random_state=1),
+               GaussianNB(), RidgeClassifier()]
+classifier_names = ['SVM', 'LDA', 'logistic', 'GNB', 'ridge']
 classes = np.hstack((np.zeros(n_controls), np.ones(n_autists)))
-cv = StratifiedShuffleSplit(classes, n_iter=10, test_size=0.33)
+n_iter = 100
+cv = StratifiedShuffleSplit(classes, n_iter=n_iter, test_size=0.3,
+                            random_state=1)
 scores = {}
 for measure in measures:
+    if measure == 'robust dispersion':
+        mem2 = Memory(None)
+    else:
+        mem2 = mem
     scores[measure] = {}
     print('---------- %20s ----------' % measure)
     for classifier, classifier_name in zip(classifiers, classifier_names):
         coefs_vec = nilearn.connectivity.connectivity_matrices.sym_to_vec(
             subjects_connectivity[measure])
-        cv_scores = cross_val_score(
+        cv_scores = mem2.cache(cross_val_score)(
             classifier, coefs_vec, classes, cv=cv, scoring='accuracy')
         scores[measure][classifier_name] = cv_scores
         print(' %14s score: %1.2f +- %1.2f' % (classifier_name,
@@ -86,21 +107,29 @@ for measure in measures:
 # Display the classification scores
 plt.figure(figsize=(5, 4))
 tick_position = np.arange(len(classifiers))
-plt.xticks(tick_position + 0.35, classifier_names)
+plt.xticks(tick_position + 0.25, classifier_names)
+labels = []
 for color, measure in zip('rgbyk', measures):
-    score_means = [scores[measure][classifier_name].mean() for
+    score_means = [scores[measure][classifier_name].mean() * 100. for
                    classifier_name in classifier_names]
-    score_stds = [scores[measure][classifier_name].std() for
+    score_stds = [scores[measure][classifier_name].std() * 100. for
                   classifier_name in classifier_names]
     if measure == 'robust dispersion':
-        label = 'geometric'
+        label = 'deviation from gmean'
     else:
         label = measure
     plt.bar(tick_position, score_means, yerr=score_stds, label=label,
             color=color, width=.2)
+    labels.append(label)
     tick_position = tick_position + .15
 plt.ylabel('Classification accuracy')
-plt.legend(measures, loc='upper left')
-plt.ylim([0., 1.2])
+plt.legend(labels, loc='upper left')
+plt.ylim([50, 85])
+ax = plt.gca()
+ax.yaxis.tick_right()
+plt.yticks([50, 60, 70, 80], ['50%', '60%', '70%', '80%'])
+plt.grid()
 plt.title(conditions[0] + ' vs ' + conditions[1])
+plt.savefig('/home/sb238920/CODE/salma/figures/abide_{0}_classif_{1}iter.pdf'
+            .format(scaling_type, n_iter))
 plt.show()

@@ -88,7 +88,8 @@ zero_diag = True
 n_inliers = 3
 n_outliers = 1
 n_subjects = len(subjects)
-for criteria in features.keys():
+for criteria in ['geometric', 'euclidean correlation',
+                                  'euclidean partial correlation']:
     print(criteria)
     indices = np.argsort(features[criteria])
     inliers_indices = indices[:n_inliers]
@@ -123,8 +124,8 @@ for criteria in features.keys():
         else:
             suptitle = 'outlier according to ' + distance_type +\
                        'distance between' + matrix_type
-#        figure.suptitle(suptitle,
-#                        fontsize=14, fontweight='bold')
+        figure.suptitle(suptitle,
+                        fontsize=14, fontweight='bold')
         measure_name = measure.replace('partial correlation', 'partial')
         criteria_name = criteria
         for old, new in zip(['euclidean', 'geometric', 'squared',

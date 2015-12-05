@@ -34,8 +34,7 @@ import nilearn.connectivity
 n_subjects = 40
 mean_matrices = []
 all_matrices = []
-measures = ["robust dispersion", "correlation", "partial correlation", "covariance",
-            "precision"]
+measures = ["correlation", "robust dispersion", "partial correlation"]
 subjects = [subj for condition in conditions for subj in
             dataset.time_series[condition]]
 subjects_connectivity = {}
@@ -76,11 +75,12 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import RidgeClassifier
 from sklearn.lda import LDA
 from sklearn.cross_validation import StratifiedShuffleSplit, cross_val_score
-classifiers = [LinearSVC(), KNeighborsClassifier(n_neighbors=1), LDA(),
+classifiers = [LinearSVC(), LDA(),
                LogisticRegression(), GaussianNB(), RidgeClassifier()]
-classifier_names = ['SVM', 'KNN', 'LDA', 'logistic', 'GNB', 'ridge']
+classifier_names = ['SVM', 'LDA', 'logistic', 'GNB', 'ridge']
 classes = np.hstack((np.zeros(n_subjects), np.ones(n_subjects)))
-cv = StratifiedShuffleSplit(classes, n_iter=1000, test_size=0.33)
+n_iter = 10000
+cv = StratifiedShuffleSplit(classes, n_iter=n_iter, test_size=0.3)
 scores = {}
 for measure in measures:
     scores[measure] = {}
@@ -95,19 +95,36 @@ for measure in measures:
               cv_scores.mean(), cv_scores.std()))
 
 # Display the classification scores
-plt.figure()
+plt.figure(figsize=(5, 4))
 tick_position = np.arange(len(classifiers))
-plt.xticks(tick_position + 0.35, classifier_names)
+plt.xticks(tick_position + 0.25, classifier_names)
+labels = []
 for color, measure in zip('rgbyk', measures):
-    score_means = [scores[measure][classifier_name].mean() for
+    score_means = [scores[measure][classifier_name].mean() * 100. for
                    classifier_name in classifier_names]
-    score_stds = [scores[measure][classifier_name].std() for
+    score_stds = [scores[measure][classifier_name].std() * 100. for
                   classifier_name in classifier_names]
-    plt.bar(tick_position, score_means, yerr=score_stds, label=measure,
+    if measure == 'robust dispersion':
+        label = 'deviation from gmean'
+    else:
+        label = measure
+    plt.bar(tick_position, score_means, yerr=score_stds, label=label,
             color=color, width=.2)
+    labels.append(label)
     tick_position = tick_position + .15
 plt.ylabel('Classification accuracy')
-plt.legend(measures, loc='upper left')
-plt.ylim([0., 1.2])
-plt.title(conditions[0] + ' vs ' + conditions[1])
+plt.legend(labels, loc='upper left')
+plt.ylim([50, 120])
+ax = plt.gca()
+plt.grid()
+ax.yaxis.tick_right()
+plt.yticks([50, 60, 70, 80, 90, 100],
+           ['50%', '60%', '70%', '80%', '90%', '100%'])
+condition1 = conditions[0].replace('ReSt1_Placebo', 'rest 1')
+condition2 = conditions[1].replace('Nbac2_Placebo', '2-back')
+condition2 = condition2.replace('Nbac3_Placebo', '3-back')
+plt.title(condition1 + ' vs ' + condition2)
+plt.savefig('/home/sb238920/CODE/salma/figures/pharmaco_classif_{}iter.pdf'
+            .format(n_iter))
 plt.show()
+

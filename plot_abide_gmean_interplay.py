@@ -48,9 +48,9 @@ import prettyplotlib as ppl
 import matplotlib.pyplot as plt
 alpha = .5
 figure, ax = plt.subplots(1, 1, figsize=(5, 4.5))
-for measure, color, label in zip(['covariance', 'robust dispersion'],
-                                 ['r', 'b'],
-                                 ['arithmetic mean', 'geometric mean']):
+for measure, color, label in zip(['robust dispersion'],
+                                 ['b'],
+                                 ['geometric mean']):
     x = mean_connectivity_vector['correlation'] - \
         mean_connectivity_vector['partial correlation']
     y = cov_to_corr(mean_normalized_matrix[measure])[
@@ -75,9 +75,9 @@ plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
 
 # Other scatters
 figure, ax = plt.subplots(1, 1, figsize=(5, 4.5))
-for measure, color, label in zip(['covariance', 'robust dispersion'],
-                                 ['r', 'b'],
-                                 ['arithmetic mean', 'geometric mean']):
+for measure, color, label in zip(['robust dispersion'],
+                                 ['b'],
+                                 ['geometric mean']):
     x2 = mean_connectivity_vector['correlation'] - \
         mean_connectivity_vector['partial correlation']
     y2 = mean_connectivity_vector['correlation'] -\
@@ -85,15 +85,18 @@ for measure, color, label in zip(['covariance', 'robust dispersion'],
             np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)]
     ppl.scatter(ax, x2, y2, color=color, label=label, alpha=alpha)
     a_fit, b_fit = np.polyfit(x2, y2, 1)
+    x_plot = np.linspace(xmin, xmax, 10)
+#    ppl.plot(ax, x_plot, a_fit * x_plot + b_fit, color='k')
+#    ax.annotate('{0:.2f} x + {1:.2g}'.format(a_fit, b_fit), xytext=(.6, .1),
+#                xy=(.6, .1))
     print measure, a_fit, b_fit
 ax = plt.gca()
 xmin, xmax = ax.get_xlim()
 ymin, ymax = ax.get_ylim()
-plt.legend(loc='lower left')
 plt.xlabel('mean correlations - mean partial correlations')
-plt.ylabel('mean correlations - corr(mean)')
+plt.ylabel('mean correlations - normalized gmean')
 ppl.plot(ax, (xmax - .002) * np.ones(10), np.linspace(ymin, ymax, 10), 'k')
-ppl.plot(ax, np.linspace(xmin, xmax, 10), (ymax - .0005) * np.ones(10), 'k')
+ppl.plot(ax, np.linspace(xmin, xmax, 10), (ymax - .0001) * np.ones(10), 'k')
 ax.yaxis.tick_right()
 plt.xlim(xmin, xmax)
 plt.ylim(ymin, ymax)

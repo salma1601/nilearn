@@ -50,44 +50,58 @@ for measure in measures:
         np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)]
 
 # Scatter plots
-for measure, color, label in zip(['covariance', 'robust dispersion'],
-                                 ['r', 'b'],
-                                 ['arithmetic mean', 'geometric mean']):
+import prettyplotlib as ppl
+# This is "import matplotlib.pyplot as plt" from the prettyplotlib library
+import matplotlib.pyplot as plt
+alpha = .5
+figure, ax = plt.subplots(1, 1, figsize=(5, 4.5))
+for measure, color, label in zip(['robust dispersion'],
+                                 ['b'],
+                                 ['geometric mean']):
     x = mean_connectivity_vector['correlation'] - \
         mean_connectivity_vector['partial correlation']
     y = cov_to_corr(mean_normalized_matrix[measure])[
-            np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)] -\
+        np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)] -\
         mean_connectivity_vector['partial correlation']
-    plt.scatter(x, y, c=color, label=label)
-    a_fit, b_fit = np.polyfit(x, y ,1)
+    ppl.scatter(ax, x, y, color=color, label=label, alpha=alpha)
+    a_fit, b_fit = np.polyfit(x, y, 1)
     print measure, a_fit, b_fit
-    #plt.plot(x, a_fit * x + b_fit)
 ax = plt.gca()
-ax.yaxis.tick_right()
+xmin, xmax = ax.get_xlim()
+plt.plot(np.linspace(xmin, xmax), np.linspace(xmin, xmax), 'k')
 plt.xlabel('mean correlations - mean partial correlations')
-plt.ylabel('corr(mean) - mean partial correlations')
-plt.legend(loc='lower right')
-plt.savefig('/home/sb238920/CODE/salma/figures/gmean_interplay_scatter.pdf')
-
+plt.ylabel('normalized gmean - mean partial correlations')
+ppl.plot(ax, (xmax - .002) * np.ones(10), np.linspace(xmin, xmax, 10), 'k')
+ppl.plot(ax, np.linspace(xmin, xmax, 10), (xmax - .001) * np.ones(10), 'k')
+ax.yaxis.tick_right()
+plt.xlim(xmin, xmax)
+plt.ylim(xmin, xmax)
+figure_name = 'gmean_interplay_scatter.pdf'
+plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
 
 # Other scatters
-plt.figure(figsize=(5, 4.5))
-for measure, color, label in zip(['covariance', 'robust dispersion'],
-                                 ['r', 'b'],
-                                 ['arithmetic mean', 'geometric mean']):
+figure, ax = plt.subplots(1, 1, figsize=(5, 4.5))
+for measure, color, label in zip(['robust dispersion'],
+                                 ['b'],
+                                 ['geometric mean']):
     x2 = mean_connectivity_vector['correlation'] - \
-    mean_connectivity_vector['partial correlation']
+        mean_connectivity_vector['partial correlation']
     y2 = mean_connectivity_vector['correlation'] -\
         cov_to_corr(mean_normalized_matrix[measure])[
-            np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)]       
-    plt.scatter(x2, y2, c=color, label=label)
-    a_fit, b_fit = np.polyfit(x2, y2 ,1)
+            np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)]
+    ppl.scatter(ax, x2, y2, color=color, label=label, alpha=alpha)
+    a_fit, b_fit = np.polyfit(x2, y2, 1)
     print measure, a_fit, b_fit
 ax = plt.gca()
-ax.yaxis.tick_right()
-plt.legend(loc='lower left')
+xmin, xmax = ax.get_xlim()
+ymin, ymax = ax.get_ylim()
 plt.xlabel('mean correlations - mean partial correlations')
-plt.ylabel('mean correlations - corr(mean)')
+plt.ylabel('mean correlations - normalized gmean')
+ppl.plot(ax, (xmax - .001) * np.ones(10), np.linspace(ymin, ymax, 10), 'k')
+ppl.plot(ax, np.linspace(xmin, xmax, 10), (ymax - .0001) * np.ones(10), 'k')
+ax.yaxis.tick_right()
+plt.xlim(xmin, xmax)
+plt.ylim(ymin, ymax)
 plt.savefig('/home/sb238920/CODE/salma/figures/gmean_interplay_scatter2.pdf')
 
 

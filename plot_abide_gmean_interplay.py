@@ -10,7 +10,7 @@ abide = datasets.fetch_abide_pcp(derivatives=['rois_ho'], DX_GROUP=2)
 subjects_unscaled = abide.rois_ho
 
 # Standardize the signals
-scaling_type = 'normalized'
+scaling_type = 'unnormalized'
 from nilearn import signal
 if scaling_type == 'normalized':
     subjects = []
@@ -57,8 +57,12 @@ for measure, color, label in zip(['robust dispersion'],
         np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)] -\
         mean_connectivity_vector['partial correlation']
     ppl.scatter(ax, x, y, color=color, label=label, alpha=alpha)
-    a_fit, b_fit = np.polyfit(x, y, 1)
-    print measure, a_fit, b_fit
+    q_fit, a_fit, b_fit = np.polyfit(x, y, 2)
+    xmin, xmax = ax.get_xlim()
+    x_plot = np.linspace(xmin, xmax, 10)
+    ppl.plot(ax, x_plot, q_fit * x_plot ** 2 + a_fit * x_plot + b_fit,
+             color='k')
+    print measure, q_fit, a_fit, b_fit
 ax = plt.gca()
 xmin, xmax = ax.get_xlim()
 plt.plot(np.linspace(xmin, xmax), np.linspace(xmin, xmax), 'k')
@@ -71,7 +75,7 @@ plt.xlim(xmin, xmax)
 plt.ylim(xmin, xmax)
 plt.legend(loc='lower right')
 figure_name = 'abide_{0}_gmean_interplay_scatter.pdf'.format(scaling_type)
-plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
+#plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
 
 # Other scatters
 figure, ax = plt.subplots(1, 1, figsize=(5, 4.5))
@@ -84,12 +88,13 @@ for measure, color, label in zip(['robust dispersion'],
         cov_to_corr(mean_normalized_matrix[measure])[
             np.triu(np.ones(mean_matrix.shape), 1).astype(np.bool)]
     ppl.scatter(ax, x2, y2, color=color, label=label, alpha=alpha)
-    a_fit, b_fit = np.polyfit(x2, y2, 1)
+    q_fit, a_fit, b_fit = np.polyfit(x2, y2, 2)
     x_plot = np.linspace(xmin, xmax, 10)
-#    ppl.plot(ax, x_plot, a_fit * x_plot + b_fit, color='k')
+    ppl.plot(ax, x_plot, q_fit * x_plot ** 2 + a_fit * x_plot + b_fit,
+             color='k')
 #    ax.annotate('{0:.2f} x + {1:.2g}'.format(a_fit, b_fit), xytext=(.6, .1),
 #                xy=(.6, .1))
-    print measure, a_fit, b_fit
+    print measure, q_fit, a_fit, b_fit
 ax = plt.gca()
 xmin, xmax = ax.get_xlim()
 ymin, ymax = ax.get_ylim()
@@ -101,7 +106,7 @@ ax.yaxis.tick_right()
 plt.xlim(xmin, xmax)
 plt.ylim(ymin, ymax)
 figure_name = 'abide_{}_gmean_interplay_scatter2.pdf'.format(scaling_type)
-plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
+#plt.savefig('/home/sb238920/CODE/salma/figures/' + figure_name)
 
 plt.figure(figsize=(5, 4))
 x = mean_connectivity_vector['correlation'] - \
@@ -114,7 +119,7 @@ ax.yaxis.tick_right()
 plt.xlabel('mean correlations - mean partial correlations')
 plt.ylabel('mean covariances - geometric mean')
 figure_name = 'abide_{}_gmean_amean_scatters.pdf'.format(scaling_type)
-plt.savefig('/home/sb238920/CODE/salma/figures/')
+#plt.savefig('/home/sb238920/CODE/salma/figures/')
 
 # Matrices plot
 from funtk.connectivity.matrix_stats import plot_matrices

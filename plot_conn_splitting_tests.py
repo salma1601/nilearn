@@ -36,8 +36,7 @@ dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
 # Estimate connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
 import nilearn.connectivity
-measures = ["robust dispersion", "correlation", "partial correlation",
-            "covariance", "precision"]
+measures = ["robust dispersion", "correlation", "partial correlation"]
 
 # Split the subjects with respect to median relative motion
 displacement = np.diff(dataset.motion[condition], axis=1)
@@ -62,7 +61,7 @@ for measure in measures:
     subjects_connectivity[measure] = cov_embedding.fit_transform(subjects)
 
 # Statitistical tests between included highly moving or not
-for measure in ['partial correlation', 'covariance',
+for measure in ['partial correlation',
                 'robust dispersion', 'correlation']:
     matrices = subjects_connectivity[measure]
     baseline = matrices[:n_subjects]
@@ -79,7 +78,7 @@ for measure in ['partial correlation', 'covariance',
 
     mask_b, mask_f, mask_diff = matrix_stats.significance_masks(
         baseline_n, follow_up_n, axis=0, paired=False, threshold=.05,
-        corrected=True)
+        corrected=True, conjunction=False)
     if measure == 'robust dispersion':
         cov_embed_baseline = nilearn.connectivity.ConnectivityMeasure(
             kind='robust dispersion', cov_estimator=EmpiricalCovariance())
@@ -89,7 +88,8 @@ for measure in ['partial correlation', 'covariance',
         cov_embed_follow_up.fit_transform(subjects[n_subjects:, ...])
         effects = [cov_embed_baseline.robust_mean_,
                    cov_embed_follow_up.robust_mean_,
-                   (follow_up - baseline).mean(axis=0)]
+                   cov_embed_follow_up.robust_mean_ -
+                   cov_embed_baseline.robust_mean_]
         mask_b = np.ones(shape=cov_embed_baseline.robust_mean_.shape,
                          dtype=bool)
         mask_f = np.ones(shape=cov_embed_follow_up.robust_mean_.shape,
@@ -133,7 +133,7 @@ for measure in ['partial correlation', 'covariance',
     else:
         cb_label = measure
         cb_label_difference = 'difference'
-    figure = plt.figsize((14, 7))
+    figure = plt.figure(figsize=(14, 7))
     matrix_stats.plot_matrices(matrices,
                            titles=['low motion',
                                    'high motion',
@@ -152,7 +152,7 @@ for measure in ['partial correlation', 'covariance',
         name = measure
     filename = os.path.join('/home/sb238920/CODE/salma/figures',
                             'motion_impact_{}_matrix_rs1.pdf'.format(name))
-    pylab.savefig(filename)
+#    pylab.savefig(filename)
     os.system("pdfcrop %s %s" % (filename, filename))
 
     # Plot the mean difference in connectivity
@@ -167,5 +167,5 @@ for measure in ['partial correlation', 'covariance',
                                      title='mean %s difference' % measure)
     filename = os.path.join('/home/sb238920/CODE/salma/figures',
                             'motion_impact_{}_graph_rs1.pdf'.format(name))
-    pylab.savefig(filename)
+#    pylab.savefig(filename)
 plt.show()

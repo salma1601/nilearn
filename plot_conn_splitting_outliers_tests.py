@@ -16,7 +16,7 @@ WMN = ['IPL', 'LMFG_peak1',
 AN = ['vIPS.cluster001', 'vIPS.cluster002',
       'pIPS.cluster001', 'pIPS.cluster002',
       'MT.cluster001', 'MT.cluster002',
-      'FEF.cluster001', 'FEF.cluster002']
+      'FEF.cluster002', 'FEF.cluster001']
 DMN = ['RTPJ', 'RDLPFC', 'AG.cluster001', 'AG.cluster002',
        'SFG.cluster001', 'SFG.cluster002',
        'PCC', 'MPFC', 'FP']

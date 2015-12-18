@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.datasets.base import Bunch
 from nilearn.connectivity2.collecting import single_glob
 
+from pyhrf.retreat import locator
 code_path = np.genfromtxt('/home/sb238920/CODE/anonymisation/code_path.txt',
                           dtype=str)
 sys.path.append(str(code_path))
@@ -196,5 +197,62 @@ def load_nilearn(timeseries_folder, motion_folder, timeseries_pattern,
         motion[condition] = [np.genfromtxt(single_glob(path)) for path in
                              motion_paths]
 
-
     return Bunch(time_series=time_series, motion=motion, rois=rois)
+
+
+def load_ho_cpac(data_dir):
+    """Loads the laterized masked version of the Harvard Oxford atlas used in
+    the ABIDE-CPAC pipeline.
+
+    Parameters
+    ==========
+    data_dir: str
+        Location of the atlas.
+
+    Returns
+    =======
+    atlas: sklearn.datasets.base.Bunch
+        dictionary-like object, keys are:
+
+        - "maps": nibabel.Nifti1Image, 4D maps if a probabilistic atlas is
+        requested and 3D labels if a maximum probabilistic atlas was
+        requested.
+
+        - "labels": string list, labels of the regions in the atlas.
+
+        - "coords": list of 1D numpy.ndarray of floats, coordinates of the
+        atlas regions centers.
+    """
+    atlas_filename = os.path.join(data_dir, 'ho_roi_atlas.nii.gz')
+    if not os.path.isfile(atlas_filename):
+        raise ValueError('{} do not contain image ho_roi_atlas.nii.gz'.format(
+                         data_dir))
+    labels_filename = os.path.join(data_dir, 'ho_roi_labels.txt')
+    coords_filename = os.path.join(data_dir, 'ho_roi_coords.txt')
+    if not os.path.isfile(atlas_filename):
+        raise ValueError('{} do not contain image ho_roi_atlas.nii.gz'.format(
+                         data_dir))
+    if (not os.path.isfile(labels_filename)) or\
+            (not os.path.isfile(coords_filename)):
+        # Get labels and corrdinates of cortical regions
+        cort_labels, cort_coords = locator.locate_labels_image(
+            atlas_filename, ho_atlas_name='cort-maxprob-thr25-1mm',
+            symmetric_split=True)
+
+        # Get labels and corrdinates of subcortical regions
+        sub_labels, sub_coords = locator.locate_labels_image(
+            atlas_filename, ho_atlas_name='sub-maxprob-thr25-1mm',
+            symmetric_split=False)
+
+        labels, coords = zip(*[
+            (cort_label, cort_coord) if cort_label != 'Background'
+            else (sub_label, sub_coord) for
+            (cort_label, cort_coord, sub_label, sub_coord) in
+            zip(cort_labels, cort_coords, sub_labels, sub_coords)])
+        np.savetxt(labels_filename, labels, fmt='%s')
+        np.savetxt(coords_filename, coords, fmt='%.5f')
+    else:
+        labels = np.loadtxt(labels_filename, delimiter=';', dtype=str)
+        coords = np.loadtxt(coords_filename)
+
+    return Bunch(maps=atlas_filename, labels=labels, coords=coords)

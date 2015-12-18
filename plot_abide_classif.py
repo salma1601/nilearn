@@ -18,11 +18,11 @@ n_controls = len(time_series['control'])
 n_autists = len(time_series['autist'])
 mean_matrices = []
 all_matrices = []
-measures = ["correlation", "robust dispersion", "partial correlation"]
+measures = ["correlation", "partial correlation"]
 subjects_unscaled = [subj for condition in conditions for subj in
                      time_series[condition]]
 # Standardize the signals
-scaling_type = 'normalized'
+scaling_type = 'unnormalized'
 from nilearn import signal
 if scaling_type == 'normalized':
     subjects = []
@@ -47,12 +47,6 @@ for measure in ['correlation', 'partial correlation']:
     else:
         mean_connectivity[measure] = \
             subjects_connectivity[measure].mean(axis=0)
-
-tangent_embedding = nilearn.connectivity.ConnectivityMeasure(
-    kind='robust dispersion', cov_estimator=LedoitWolf())
-subjects_connectivity['robust dispersion'] = tangent_embedding.fit_transform(subjects,
-                                                             mem=mem)
-mean_connectivity['robust dispersion'] = tangent_embedding.robust_mean_
 
 # Plot the mean connectivity
 import nilearn.plotting
@@ -83,12 +77,17 @@ classifiers = [LinearSVC(random_state=1), LDA(),
                LogisticRegression(random_state=1),
                GaussianNB(), RidgeClassifier()]
 classifier_names = ['SVM', 'LDA', 'logistic', 'GNB', 'ridge']
+# TODO: stratify also w.r.t. site
 classes = np.hstack((np.zeros(n_controls), np.ones(n_autists)))
-n_iter = 100
+n_iter = 10
 cv = StratifiedShuffleSplit(classes, n_iter=n_iter, test_size=0.3,
                             random_state=1)
 scores = {}
-for measure in measures:
+corrs = subjects_connectivity['correlation']
+partials = subjects_connectivity['partial correlation']
+subjects_connectivity['mix'] = 0.573497578635 * (corrs - partials) ** 2 +\
+    0.471676957796 * (corrs - partials) + partials
+for measure in measures + ['mix']:
     if measure == 'robust dispersion':
         mem2 = Memory(None)
     else:
@@ -109,7 +108,7 @@ plt.figure(figsize=(5, 4))
 tick_position = np.arange(len(classifiers))
 plt.xticks(tick_position + 0.25, classifier_names)
 labels = []
-for color, measure in zip('rgbyk', measures):
+for color, measure in zip('rgbyk', measures + ['mix']):
     score_means = [scores[measure][classifier_name].mean() * 100. for
                    classifier_name in classifier_names]
     score_stds = [scores[measure][classifier_name].std() * 100. for
@@ -130,6 +129,6 @@ ax.yaxis.tick_right()
 plt.yticks([50, 60, 70, 80], ['50%', '60%', '70%', '80%'])
 plt.grid()
 plt.title(conditions[0] + ' vs ' + conditions[1])
-plt.savefig('/home/sb238920/CODE/salma/figures/abide_{0}_classif_{1}iter.pdf'
-            .format(scaling_type, n_iter))
+#plt.savefig('/home/sb238920/CODE/salma/figures/abide_{0}_classif_{1}iter.pdf'
+#            .format(scaling_type, n_iter))
 plt.show()

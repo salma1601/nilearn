@@ -36,8 +36,7 @@ dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=[condition],
 # Estimate connectivity matrices
 from sklearn.covariance import EmpiricalCovariance
 import nilearn.connectivity
-measures = ["robust dispersion", "correlation", "partial correlation",
-            "covariance", "precision"]
+measures = ["robust dispersion", "correlation", "partial correlation"]
 
 # Split the subjects with respect to spreading / eig
 subjects = dataset.time_series[condition]
@@ -82,7 +81,7 @@ for measure in ['correlation', 'partial correlation', 'robust dispersion']:
 
     mask_b, mask_f, mask_diff = matrix_stats.significance_masks(
         baseline_n, follow_up_n, axis=0, paired=False, threshold=0.05,
-        corrected=True)
+        corrected=True, conjunction=False)
     if measure == 'robust dispersion':
         cov_embed_baseline = nilearn.connectivity.ConnectivityMeasure(
             kind='robust dispersion', cov_estimator=EmpiricalCovariance())

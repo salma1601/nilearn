@@ -28,7 +28,7 @@ conn_folder_no_filt = conn_folders[1]
 
 conditions = ['ReSt1_Placebo', 'Nbac3_Placebo']
 dataset = dataset_loader.load_conn(conn_folder_no_filt, conditions=conditions,
-                                   standardize=True,
+                                   standardize=False,
                                    networks=networks)
 # Rename the ROIs
 regions_labels = zip(*dataset.rois)[0]
@@ -67,10 +67,14 @@ for measure in measures:
 
 # Statitistical tests between the conditions
 from scipy.linalg import logm
+matrices_to_plot = {}
+comparison_pvals = {}
+pval_to_plot = {}
 for measure in measures:
     matrices = subjects_connectivity[measure]
     baseline = matrices[:n_subjects]
     follow_up = matrices[n_subjects:]
+    n_tests = baseline.shape[-1]
     if measure in ['correlation', 'partial correlation']:
         # Z-Fisher transform if needed
         baseline_n = matrix_stats.corr_to_Z(baseline)
@@ -78,17 +82,23 @@ for measure in measures:
 #        baseline_n[np.isnan(baseline_n)] = 1.
 #        follow_up_n[np.isnan(follow_up_n)] = 1.
         conjunction = True
-        n_tests = baseline.shape[-1]
         threshold = .01 / (n_tests * (n_tests - 1.) / 2.)
     else:
         baseline_n = baseline
         follow_up_n = follow_up
         conjunction = False
         threshold = .05 / (n_tests * (n_tests + 1.) / 2.)
+    corrected = True
+    paired = True
+    threshold = 0.05
+    conjunction = False
+    comparison_pvals[measure] = matrix_stats.get_pvalues(
+        baseline_n, follow_up_n, axis=0, paired=paired, threshold=threshold,
+        corrected=corrected, conjunction=conjunction)
+    pval_b, pval_f, pval_diff = comparison_pvals[measure]
+    mask_b, mask_f, mask_diff = pval_b < threshold, pval_f < threshold,\
+        pval_diff < threshold
 
-    mask_b, mask_f, mask_diff = matrix_stats.significance_masks(
-        baseline_n, follow_up_n, axis=0, paired=True, threshold=threshold,
-        corrected=False, conjunction=False)
     if measure == 'robust dispersion':
         cov_embed_baseline = nilearn.connectivity.ConnectivityMeasure(
             kind='robust dispersion', cov_estimator=EmpiricalCovariance())
@@ -135,14 +145,55 @@ for measure in measures:
                                lines=np.cumsum(n_regions_per_ntwk)[:-1],
                                zero_diag=True, font_size=8)
 
+    pval_to_plot[measure] = - np.log10(pval_diff) #*\
+#        np.sign(matrices_to_plot[measure][2])
+    pval_to_plot[measure][np.logical_not(mask_diff)] = 0.
+    pval_to_plot[measure] = np.minimum(pval_to_plot[measure],
+                                       pval_to_plot[measure].T)
+    pval_to_plot[measure] = (pval_to_plot[measure] +
+                             pval_to_plot[measure].T) / 2  # force symetry
     # Plot the mean difference in connectivity
-    symmetric_mean_matrix = (mean_matrix + mean_matrix.T) / 2.  # force symetry
     import nilearn.plotting
     labels, region_coords = zip(*dataset.rois)
     node_color = ['g' if label in DMN else 'y' if label in WMN else 'm' for
                   label in labels]
-    nilearn.plotting.plot_connectome(symmetric_mean_matrix, region_coords,
+    nilearn.plotting.plot_connectome(pval_to_plot[measure], region_coords,
                                      edge_threshold='0%',
                                      node_color=node_color,
                                      title='mean %s difference' % measure)
 plt.show()
+################
+# Overlay graphs
+################
+# diplay1: Which edges are captured by robust dispersion
+# display2: Are there new edges in robust dispersion
+from nilearn import plotting
+for measure in ['correlation', 'partial correlation', 'robust dispersion']:
+    intersection1 = np.logical_and(
+        pval_to_plot['robust dispersion'] != 0,
+        pval_to_plot['correlation'] != 0)
+    intersection2 = np.logical_and(
+        pval_to_plot['robust dispersion'] != 0,
+        pval_to_plot['partial correlation'] != 0)
+    intersection3 = np.logical_and(
+        pval_to_plot['robust dispersion'] != 0,
+        pval_to_plot['partial correlation'] != 0,
+        pval_to_plot['correlation'] != 0)
+    display = plotting.plot_connectome(pval_to_plot[measure],
+                                       region_coords,
+                                       edge_threshold='0%',
+                                       node_color=node_color,
+                                       title='%s difference pvalues' % measure)
+    for intersection, color in zip([intersection1, intersection2,
+                                    intersection3], 'mgk'):
+        matrix = pval_to_plot[measure].copy()
+        matrix[np.logical_not(intersection)] = 0.
+        display.add_graph(matrix,
+                          region_coords,
+                          edge_threshold='0%',
+                          node_color=node_color,
+                          edge_kwargs={'color': color})
+    display.savefig('/tmp/{0}-vs-{1}_{2}_intersection.png'.format(
+        conditions[0], conditions[1], measure))
+    display.close()
+plotting.show()

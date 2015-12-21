@@ -32,7 +32,7 @@ measures = ["correlation", "partial correlation", "robust dispersion"]
 subjects_unscaled = [subj for condition in conditions for subj in
                      time_series[condition]]
 # Standardize the signals
-scaling_type = 'unnormalized'
+scaling_type = 'normalized'
 from nilearn import signal
 if scaling_type == 'normalized':
     subjects = []
@@ -105,7 +105,7 @@ for measure in measures:  # + ['mix']
 #                               for matrix in follow_up])
 #        matrix_stats.fill_nd_diagonal(baseline_n, np.nan)
 #        matrix_stats.fill_nd_diagonal(follow_up_n, np.nan)
-    threshold = 0.05
+    threshold = 0.01
     paired = False
     corrected = True
     conjunction = False
@@ -157,9 +157,11 @@ for measure in measures:  # + ['mix']
                   'Insular Cortex, left part' else 'g' if 'Caudate' in label
                   else 'r' for label in region_labels]
     # TODO: debug
-    pval_to_plot[measure] = - np.log10(pval_diff) *\
-        np.sign(matrices_to_plot[measure][2])
+    pval_to_plot[measure] = - np.log10(pval_diff) #*\
+#        np.sign(matrices_to_plot[measure][2])
     pval_to_plot[measure][np.logical_not(mask_diff)] = 0.
+    pval_to_plot[measure] = np.minimum(pval_to_plot[measure],
+                                       pval_to_plot[measure].T)
     pval_to_plot[measure] = (pval_to_plot[measure] +
                              pval_to_plot[measure].T) / 2  # force symetry
 #    lower_triangular_adjacency_matrix = np.tril(symmetric_mean_matrix, k=-1)

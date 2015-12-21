@@ -86,8 +86,8 @@ quality_names = {85: 'entropy',
                  87: 'func FWHM',
                  88: 'DVARS',
                  89: 'outlier voxels',
-                 90: 'mean distance to median volume',
-                 91: 'mean framewise displacement',
+                 90: 'mean distance to\nmedian volume',
+                 91: 'mean framewise\ndisplacement',
                  92: 'number fd',
                  93: 'percent FD',
                  94: 'func GSR'}
@@ -199,10 +199,11 @@ def is_outlier(points, threshold=3.5):
 
 
 # Scatter plot geometric and euclidean distances and highlight outliers
+figure = plt.figure(figsize=(5, 5.2))
 x = np.array(features['geometric'])
 y = np.array(features['euclidean correlation'])
 z = np.array(features['euclidean partial correlation'])
-plt.scatter(x, y, c='k', edgecolor='k', alpha=0.5, marker='x')
+plt.scatter(x, y, c='k', edgecolor='k', marker='x')
 x_min, x_max = x.min() - .5, x.max() + .5
 y_min, y_max = y.min() - .5, y.max() + .5
 #x = np.arange(1,5,0.01)
@@ -219,7 +220,7 @@ xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
 #cm = plt.cm.RdBu
 #plt.contourf(xx, yy, modified_z_score(np.dstack((xx, yy))), cmap=cm, alpha=.8)
 #plt.contourf(xx, yy, modified_z_score(np.dstack((yy, xx))), cmap=cm, alpha=.8)
-for quality_id, color in zip(range(88, 92) + [93], 'kgbrmcrbg'):
+for quality_id, color in zip(range(88, 92) + [93], 'cgbrmyrbg'):
     q75, q25 = np.percentile(quality[quality_id], [75, 25])
     q95, q5 = np.percentile(quality[quality_id], [95, 5])
     iqr = q75 - q25
@@ -227,21 +228,29 @@ for quality_id, color in zip(range(88, 92) + [93], 'kgbrmcrbg'):
         frac = 3.
     else:
         frac = 3.
+
+    if quality_id == 93:  # percent FD has big values
+        size_fractor = 5.
+    else:
+        size_fractor = 50.
+    
     if higher_is_noiser[quality_id]:
         indices = np.where(quality[quality_id] > q75 + frac * iqr)
-        size = 50. * np.array(quality[quality_id]) / np.median(quality[quality_id])
+        size = size_fractor * np.array(quality[quality_id]) / np.median(quality[quality_id])
     elif lower_is_noiser[quality_id]:
         indices = np.where(quality[quality_id] < q5)
         size = 50. * np.median(quality[quality_id]) / np.array(quality[quality_id])
     else:
         indices = np.where(np.logical_or(quality[quality_id] > q75 + 1.5 * iqr,
                                          quality[quality_id] < q25 - 1.5 * iqr))
-    plt.scatter(x[indices],
-                y[indices], c=color, edgecolor=color, alpha=0.5,
+    plt.scatter(x[indices], y[indices], s=5, marker='o',
+                c=color, edgecolor=color,
                 label=quality_names[quality_id])
     plt.scatter(x[indices], y[indices], s=size[indices], marker='o',
                 edgecolor=color,
                 facecolor='none')
+    plt.scatter(x[indices], y[indices], marker='x',
+                c='k', edgecolor='k')
 
 # Plot thresholds
 #for percentile in [75, 90]:
@@ -258,7 +267,11 @@ threshold = 3.5
 #            facecolors='none')
 plt.xlabel('geometric covariance distance')
 plt.ylabel('euclidean correlation distance')
-plt.legend()
+plt.xlim(14, 35)
+plt.ylim(17, 45)
+figure.suptitle('outliers and average distance to the other subjects')
+plt.legend(fontsize='12')
+plt.savefig('/home/sb238920/CODE/salma/figures/outliers_abide.pdf')
 plt.show()
 
 #Try relate some motion parameters or variance to eigenvalues

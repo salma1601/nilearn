@@ -409,16 +409,12 @@ def clean(signals, sessions=None, detrend=True, standardize=True,
            If detrending should be applied on timeseries (before
            confound removal)
 
-       standardize: bool
-           If True, returned signals are set to unit variance.
-           The ``standardize`` parameter is deprecated and will be removed, use
-           ``normalize="std"`` to standardize.
-
        normalize: {'psc', 'std', None}, optional
            Signals normalization method.
            If 'psc' (percent signal change), input signals temporal means are
            set to 100 prior to any preprocessing.
-           If 'std', output signals are set to unit variance.
+           If 'std', output signals are standardized, ie centered and set to
+           unit variance.
            If None, no normalization is done.
 
        Returns

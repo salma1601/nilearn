@@ -79,9 +79,13 @@ class DictLearning(BaseDecomposition, TransformerMixin):
         If smoothing_fwhm is not None, it gives the size in millimeters of the
         spatial smoothing to apply to the signal.
 
-    standardize : boolean, optional
-        If standardize is True, the time-series are centered and normed:
-        their variance is put to 1 in the time dimension.
+    normalize: {"psc", "std", None}, optional
+        The time-series normalization method.
+        If 'psc' (percent signal change), input time-series means in the time
+        dimension are put to 100 prior to any temporal preprocessing.
+        If 'std', the output time-series are standardized, ie centered and
+        normed to unit variance.
+        If None, no normalization is done.
 
     target_affine: 3x3 or 4x4 matrix, optional
         This parameter is passed to image.resample_img. Please see the
@@ -131,8 +135,8 @@ class DictLearning(BaseDecomposition, TransformerMixin):
     def __init__(self, n_components=20,
                  n_epochs=1, alpha=10, reduction_ratio='auto', dict_init=None,
                  random_state=None,
-                 mask=None, smoothing_fwhm=4,
-                 standardize=True, detrend=True,
+                 mask=None, smoothing_fwhm=4, standardize=True,
+                 normalize='std', detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
                  target_affine=None, target_shape=None,
                  mask_strategy='epi', mask_args=None,
@@ -144,6 +148,7 @@ class DictLearning(BaseDecomposition, TransformerMixin):
                                    mask=mask,
                                    smoothing_fwhm=smoothing_fwhm,
                                    standardize=standardize,
+                                   normalize=normalize,
                                    detrend=detrend,
                                    low_pass=low_pass, high_pass=high_pass,
                                    t_r=t_r,

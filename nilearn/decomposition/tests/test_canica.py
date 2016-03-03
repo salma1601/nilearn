@@ -83,6 +83,7 @@ def test_canica_square_img():
     # K should be a permutation matrix, hence its coefficients
     # should all be close to 0 1 or -1
     K_abs = np.abs(K)
+    print K
     assert_true(np.sum(K_abs > .9) == 4)
     K_abs[K_abs > .9] -= 1
     assert_array_almost_equal(K_abs, 0, 1)

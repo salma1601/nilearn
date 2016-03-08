@@ -377,7 +377,7 @@ def test_clean_confounds():
     assert_raises(TypeError, nisignal.clean, signals,
                   confounds=[None])
 
-    # Test without standardizing that constant parts of confounds are
+    # Test without normalizing that constant parts of confounds are
     # accounted for
     for normalize in [None, 'psc']:
         np.testing.assert_almost_equal(nisignal.clean(np.ones((20, 2)),

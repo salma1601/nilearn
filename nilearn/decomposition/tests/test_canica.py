@@ -16,10 +16,10 @@ def _make_data_from_components(components, affine, shape, rng=None,
     if rng is None:
         rng = np.random.RandomState(0)
     for _ in range(n_subjects):
-        this_data = np.dot(rng.normal(size=(40, 4)), components)
+        this_data = np.dot(rng.normal(size=(50, 4)), components)
         this_data += .01 * rng.normal(size=this_data.shape)
         # Get back into 3D for CanICA
-        this_data = np.reshape(this_data, (40,) + shape)
+        this_data = np.reshape(this_data, (50,) + shape)
         this_data = np.rollaxis(this_data, 0, 4)
         data.append(nibabel.Nifti1Image(this_data, affine))
     return data

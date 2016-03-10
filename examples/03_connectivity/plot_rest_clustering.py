@@ -33,7 +33,7 @@ print('First subject functional nifti image (4D) is at: %s' %
 # EPI images
 nifti_masker = input_data.NiftiMasker(memory='nilearn_cache',
                                       mask_strategy='epi', memory_level=1,
-                                      standardize=False)
+                                      normalize=None)
 func_filename = nyu_dataset.func[0]
 fmri_masked = nifti_masker.fit_transform(func_filename)
 mask = nifti_masker.mask_img_.get_data().astype(np.bool)

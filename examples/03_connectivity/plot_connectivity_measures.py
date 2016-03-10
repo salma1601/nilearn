@@ -21,7 +21,7 @@ dataset = nilearn.datasets.fetch_adhd(n_subjects=30)
 import nilearn.input_data
 masker = nilearn.input_data.NiftiMapsMasker(
     atlas.maps, resampling_target="maps", detrend=True,
-    low_pass=None, high_pass=None, t_r=2.5, standardize=False,
+    low_pass=None, high_pass=None, t_r=2.5, normalize=None,
     memory='nilearn_cache', memory_level=1)
 subjects = []
 sites = []

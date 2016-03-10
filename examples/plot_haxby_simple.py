@@ -40,7 +40,7 @@ target = target[condition_mask]
 from nilearn.input_data import NiftiMasker
 mask_filename = haxby_dataset.mask_vt[0]
 # For decoding, standardizing is often very important
-nifti_masker = NiftiMasker(mask_img=mask_filename, standardize=True)
+nifti_masker = NiftiMasker(mask_img=mask_filename, normalize="std")
 
 func_filename = haxby_dataset.func[0]
 # We give the nifti_masker a filename and retrieve a 2D array ready

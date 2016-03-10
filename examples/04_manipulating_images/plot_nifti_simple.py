@@ -23,7 +23,7 @@ from nilearn.input_data import NiftiMasker
 
 # As this is raw resting-state EPI, the background is noisy and we cannot
 # rely on the 'background' masking strategy. We need to use the 'epi' one
-nifti_masker = NiftiMasker(standardize=False, mask_strategy='epi',
+nifti_masker = NiftiMasker(normalize=None, mask_strategy='epi',
                            memory="nilearn_cache", memory_level=2)
 nifti_masker.fit(func_filename)
 mask_img = nifti_masker.mask_img_

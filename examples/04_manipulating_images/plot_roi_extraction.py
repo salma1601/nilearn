@@ -118,7 +118,7 @@ plot_roi(new_img_like(fmri_img, second_roi_data),
 masker = NiftiLabelsMasker(
     labels_img=new_img_like(fmri_img, labels),
     resampling_target=None,
-    standardize=False,
+    normalize=None,
     detrend=False)
 masker.fit()
 condition_names = list(set(haxby_labels))

@@ -135,7 +135,7 @@ class DictLearning(BaseDecomposition, TransformerMixin):
     def __init__(self, n_components=20,
                  n_epochs=1, alpha=10, reduction_ratio='auto', dict_init=None,
                  random_state=None,
-                 mask=None, smoothing_fwhm=4, standardize=True,
+                 mask=None, smoothing_fwhm=4, standardize=None,
                  normalize='std', detrend=True,
                  low_pass=None, high_pass=None, t_r=None,
                  target_affine=None, target_shape=None,

@@ -51,12 +51,12 @@ for get_networks in [locator.meta_motor, locator.meta_non_cortical,
 ###############################################################
 # Compare rest to task for low motion
 ###############################################################
-acq_filename = '/home/sb238920/nilearn_data/servier/sessions.txt'
+acq_filename = '/home/sb238920/nilearn_data/pharmaco/sessions.txt'
 
 # Get folders for Placebo acquisitions
 subjects_acqs = np.genfromtxt(acq_filename, delimiter=':',
                               dtype='str', usecols=(0, 1))
-data_path = '/home/sb238920/nilearn_data/servier'
+data_path = '/home/sb238920/nilearn_data/pharmaco'
 prefixes = ['rs1', 'nback_2', 'nback_3', 'rs2']
 colors = ['r.', 'g.', 'b.', 'm.']
 subjects = []
@@ -171,7 +171,7 @@ for prefix1, prefix2 in prefixes_couples:
     from sklearn.cross_validation import StratifiedShuffleSplit
     for measure, coefs in zip(measures, all_matrices):
         y = np.hstack((np.zeros(n_subjects / 2), np.ones(n_subjects / 2)))
-        # regions of servier report
+        # regions of pharmaco report
 #        regions = [14, 15, 17, 20] + range(25, 42)
 #        X = coefs[:, regions, :]
 #        X = coefs[:, :, regions]
@@ -331,25 +331,25 @@ plt.show()
 radius = 6.
 raw_subjects = []
 subjects = []
-acq_filename = '/neurospin/servier2/salma/nilearn/sessions.txt'
+acq_filename = '/neurospin/pharmaco/salma/nilearn/sessions.txt'
 
 # Get folders for Placebo acquisitions
 subjects_acqs = np.genfromtxt(acq_filename, delimiter=':',
                               dtype='str', usecols=(0, 1))
-data_path = '/neurospin/servier2/salma'
+data_path = '/neurospin/pharmaco/salma'
 accepted_acqs = [os.path.join(
     data_path, subject_acq[0], 'fMRI', subject_acq[1]) for subject_acq in
     subjects_acqs]
-data_path = '/neurospin/servier2/study'
+data_path = '/neurospin/pharmaco/study'
 rejected_acqs = [os.path.join(data_path, subject_acq[0], 'fMRI',
                               revert_acquisition(subject_acq[1]))
                  for subject_acq in subjects_acqs]
 rejected_acqs = [folder for folder in rejected_acqs if os.path.isdir(folder)]
 # TODO: spatially preprocess AP130327_acquisition11
-rejected_acqs.remove('/neurospin/servier2/study/AP130327/fMRI/acquisition11')
+rejected_acqs.remove('/neurospin/pharmaco/study/AP130327/fMRI/acquisition11')
 
 # Get the path for the CONN project
-conn_dir = os.path.join('/neurospin/servier2/salma/subject1to40',
+conn_dir = os.path.join('/neurospin/pharmaco/salma/subject1to40',
     'conn_servier2_1to40sub_RS1-Nback2-Nback3-RS2_Pl-D_1_1_1')
 raw_dir = os.path.join(conn_dir, 'data')
 prefixes = ['rs1', 'nback_2', 'nback_3', 'rs2']
@@ -486,15 +486,15 @@ for n, folder in enumerate(folders):
     session = os.path.basename(folder)
     sessions.append(session)
     np.save(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', out_folder, 'spheres',
         'tmp', nip + '_' + session + '_' + prefix),
         region_ts)
     np.save(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', out_folder, 'spheres',
         'raw', nip + '_' + session + '_' + prefix),
         region_raw_ts)
     np.save(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', out_folder, 'spheres',
         'no_motion', nip + '_' + session + '_' + prefix),
         region_no_motion_ts)
 
@@ -506,11 +506,11 @@ for n, folder in enumerate(folders):
 all_subjects = []
 for nip, session in zip(nips, sessions):
     all_subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', 'low_motion', 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', 'low_motion', 'spheres',
         'tmp', nip + '_' + revert_acquisition(session) + '_' + 'rs1.npy')))
 for nip, session in zip(nips, sessions):
     all_subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', 'high_motion', 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', 'high_motion', 'spheres',
         'tmp', nip + '_' + session + '_' + 'rs1.npy')))
 
 n_subjects = len(all_subjects)
@@ -573,11 +573,11 @@ plt.show()
 subjects = []
 for nip, session in zip(nips, sessions):
     subjects.append(np.load(os.path.join(
-        '/home/sb238920/nilearn_data/servier', out_folder, 'spheres',
+        '/home/pharmaco/nilearn_data/servier', out_folder, 'spheres',
         'tmp', nip + '_' + session + '_' + 'rs1.npy')))
 for nip, session in zip(nips, sessions):
     subjects.append(np.load(os.path.join(
-        '/neurospin/servier2/salma/nilearn_outputs', out_folder, 'spheres',
+        '/neurospin/pharmaco/salma/nilearn_outputs', out_folder, 'spheres',
         'tmp', nip + '_' + session + '_' + 'rs1.npy')))
 
 n_subjects = len(subjects)

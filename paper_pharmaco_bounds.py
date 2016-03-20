@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Test on servier dataset
+Test on pharmaco dataset
 """
 import sys
 import os
@@ -10,7 +10,7 @@ import matplotlib.pylab as plt
 
 from nilearn.connectivity import CovEmbedding, vec_to_sym
 from nilearn.connectivity.embedding import cov_to_corr
-sys.path.append('/home/sb238920/CODE/servier2')
+sys.path.append('/home/sb238920/CODE/pharmaco')
 from my_conn import MyConn
 #from compute_precision import plot_matrix
 def corr_to_Z(corr, tol=1e-7):

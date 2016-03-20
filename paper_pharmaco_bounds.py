@@ -246,7 +246,7 @@ plot_matrix(cov_to_corr(mean_matrices[2]) - mean_matrices[4],
 plt.show()
 ser, = plt.plot((mean_matrices[3] - cov_to_corr(mean_matrices[2])).ravel(),
                 (mean_matrices[3] - mean_matrices[4]).ravel(), 'g.',
-                label='servier dataset')
+                label='pharmaco dataset')
 plt.xlabel('corrs - corr(gmean)')
 plt.ylabel('corrs - partials')
 wish, = plt.plot((np.mean(corrs, axis=0) - cov_to_corr(geo)).ravel(),
@@ -262,4 +262,4 @@ plt.show()
 
 ser_plot, = plt.plot(np.triu(corr_to_Z(mean_matrices[3]), k=1).ravel(),
                       np.triu(corr_to_Z(mean_matrices[4]), k=1).ravel(), 'g*',
-                      label='servier dataset')
+                      label='pharmaco dataset')

@@ -130,12 +130,16 @@ class _ExtractionFunctor(object):
         imgs = check_niimg_4d(imgs)
 
         signals = np.empty((imgs.shape[3], n_seeds))
+        n_voxels = np.empty((imgs.shape[3], n_seeds))
         for i, sphere in enumerate(_iter_signals_from_spheres(
                 self.seeds_, imgs, self.radius, self.allow_overlap,
                 mask_img=self.mask_img)):
             signals[:, i] = np.mean(sphere, axis=1)
+#            print(sphere)
+#            print signals[:, i].shape
+#            n_voxels[:, i] = np.sum(sphere, axis=1) / signals[:, i]
 
-        return signals, None
+        return signals, n_voxels
 
 
 class NiftiSpheresMasker(BaseMasker, CacheMixin):
@@ -311,7 +315,7 @@ class NiftiSpheresMasker(BaseMasker, CacheMixin):
 
         params = get_params(NiftiSpheresMasker, self)
 
-        signals, _ = self._cache(
+        signals, n_voxels = self._cache(
                 filter_and_extract,
                 ignore=['verbose', 'memory', 'memory_level'])(
             # Images
@@ -326,4 +330,4 @@ class NiftiSpheresMasker(BaseMasker, CacheMixin):
             # kwargs
             verbose=self.verbose)
 
-        return signals
+        return signals, n_voxels

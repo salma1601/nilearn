@@ -4,6 +4,7 @@ Transformer for computing seeds signals.
 Mask nifti images by spherical volumes for seed-region analyses
 """
 import numpy as np
+from scipy import stats
 import sklearn
 from sklearn import neighbors
 from sklearn.externals.joblib import Memory
@@ -135,9 +136,7 @@ class _ExtractionFunctor(object):
                 self.seeds_, imgs, self.radius, self.allow_overlap,
                 mask_img=self.mask_img)):
             signals[:, i] = np.mean(sphere, axis=1)
-#            print(sphere)
-#            print signals[:, i].shape
-#            n_voxels[:, i] = np.sum(sphere, axis=1) / signals[:, i]
+            n_voxels[:, i] = np.sum(sphere, axis=1) / signals[:, i]
 
         return signals, n_voxels
 
@@ -329,5 +328,6 @@ class NiftiSpheresMasker(BaseMasker, CacheMixin):
             memory_level=self.memory_level,
             # kwargs
             verbose=self.verbose)
-
+        n_voxels = [stats.mode(map(round, n_voxel))[0][0] for n_voxel in
+                    n_voxels.T]
         return signals, n_voxels

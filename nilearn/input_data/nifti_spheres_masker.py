@@ -328,6 +328,6 @@ class NiftiSpheresMasker(BaseMasker, CacheMixin):
             memory_level=self.memory_level,
             # kwargs
             verbose=self.verbose)
-        n_voxels = [stats.mode(map(round, n_voxel))[0][0] for n_voxel in
-                    n_voxels.T]
+        n_voxels = np.asarray([stats.mode(map(round, n_voxel))[0][0]
+                               for n_voxel in n_voxels.T])
         return signals, n_voxels

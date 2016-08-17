@@ -33,7 +33,6 @@ def _apply_mask_and_get_affinity(seeds, niimg, radius, allow_overlap,
                                       interpolation='nearest')
         mask, _ = masking._load_mask_img(mask_img)
         mask_coords = list(zip(*np.where(mask != 0)))
-
         X = masking._apply_mask_fmri(niimg, mask_img)
     else:
         mask_coords = list(np.ndindex(niimg.shape[:3]))
@@ -46,14 +45,19 @@ def _apply_mask_and_get_affinity(seeds, niimg, radius, allow_overlap,
         nearest = nearest.astype(int)
         nearest = (nearest[0], nearest[1], nearest[2])
         try:
+#            print('nearest voxel has coordinates {0} in image space'.format(nearest))
             nearests.append(mask_coords.index(nearest))
         except ValueError:
             nearests.append(None)
 
+    debug_coord = (6, 29, 23)
+    idx = mask_coords.index(debug_coord)
+#    print('mask coord before transform  is {0}'.format(mask_coords[idx]))
     mask_coords = np.asarray(list(zip(*mask_coords)))
     mask_coords = coord_transform(mask_coords[0], mask_coords[1],
                                   mask_coords[2], affine)
     mask_coords = np.asarray(mask_coords).T
+#    print('mask coord transform after coord is {0}'.format(mask_coords[idx]))
 
     if (radius is not None and
             LooseVersion(sklearn.__version__) < LooseVersion('0.16')):
@@ -64,16 +68,21 @@ def _apply_mask_and_get_affinity(seeds, niimg, radius, allow_overlap,
     clf = neighbors.NearestNeighbors(radius=radius)
     A = clf.fit(mask_coords).radius_neighbors_graph(seeds)
     A = A.tolil()
+#    print('{0} voxels {1}'.format(A.sum(), A.rows))
     for i, nearest in enumerate(nearests):
         if nearest is None:
             continue
         A[i, nearest] = True
+#        print(' adding {0} to sphere'.format(mask_coords[nearest]))
 
     # Include the voxel containing the seed itself if not masked
     mask_coords = mask_coords.astype(int).tolist()
+#    print('nearests is {0}'.format(nearests))
+#    print('============================')
     for i, seed in enumerate(seeds):
         try:
             A[i, mask_coords.index(seed)] = True
+#            print(' adding {0} to sphere'.format(mask_coords[mask_coords.index(seed)]))
         except ValueError:
             # seed is not in the mask
             pass
@@ -82,6 +91,7 @@ def _apply_mask_and_get_affinity(seeds, niimg, radius, allow_overlap,
         if np.any(A.sum(axis=0) >= 2):
             raise ValueError('Overlap detected between spheres')
 
+#    print('{0} voxels'.format(A.sum()))
     return X, A
 
 
@@ -113,6 +123,7 @@ def _iter_signals_from_spheres(seeds, niimg, radius, allow_overlap,
     for i, row in enumerate(A.rows):
         if len(row) == 0:
             raise ValueError('Sphere around seed #%i is empty' % i)
+#        print('first time point for voxels are region {0} is {1}'.format(i, X[i, row]))
         yield X[:, row]
 
 
